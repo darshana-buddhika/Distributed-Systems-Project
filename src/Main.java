@@ -6,11 +6,14 @@ public class Main {
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
 		try {
-			UDPClient client_one = new UDPClient(10001, "darshana");
+			UDPClient client_one = new UDPClient(15000, "darshana");
 			client_one.registerNetwork();
 			
 //			client_one.unregisterNetwork();
-			client_one.closeSocket();
+//			client_one.closeSocket();
+			
+			UDPClient client_two = new UDPClient(16000, "fyp");
+			client_two.registerNetwork();
 			
 		} catch (UnknownHostException e) {
 			// TODO Auto-generated catch block
