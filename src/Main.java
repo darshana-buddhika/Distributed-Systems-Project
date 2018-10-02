@@ -15,6 +15,9 @@ public class Main {
 			UDPClient client_two = new UDPClient(16000, "fyp");
 			client_two.registerNetwork();
 			
+			UDPClient client_3 = new UDPClient(17000, "three");
+			client_3.registerNetwork();
+			
 		} catch (UnknownHostException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

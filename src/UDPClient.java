@@ -19,43 +19,54 @@ public class UDPClient{
 		this.myPort = port;
 		this.username = username;
 		this.myAddress = InetAddress.getByName("localhost");
-		this.clientSocket = new DatagramSocket();
+		this.clientSocket = new DatagramSocket(port);
 	}
 	
 	// REGISTER TO THE NETWORK
 	public void registerNetwork() {
-		//FORM THE MESSAGE
-		String message = " REG "+myAddress+" "+myPort+" "+username;
-		message = String.format("%04d", message.length()+ 4) + message;
+		// FORM THE MESSAGE
+		String message = " REG " + myAddress + " " + myPort + " " + username;
+		message = String.format("%04d", message.length() + 4) + message;
 		System.out.println("SEND JOIN MESSAGE : " + message);
-		
-		//SEND THE MESSAGE AND RECIVE THE RESPONCE FROM THE SERVER
-		String ACK = sendMessage(message, serverIP , serverPort);
-		
+
+		// SEND THE MESSAGE AND RECIVE THE RESPONCE FROM THE SERVER
+		String ACK = sendMessage(message, serverIP, serverPort);
+
 		System.out.print("SERVER RESPONSE : ");
 		System.out.println(ACK);
-		
+
 		String[] response = ACK.split(" ");
-		
-		if(Integer.parseInt(response[2].trim()) == 9998) {
-			System.out.println("CLIENT IS ALREADY REGISTERED...");
-		}else if (Integer.parseInt(response[2].trim()) == 9999) {
-			System.out.println("COMMAND ERROR ...");
-		}else if(Integer.parseInt(response[2].trim()) == 9997) {
-			System.out.println("CANNOT REGISTER PLEASE TRY DIFFRENT PORT OR IP...");
-		}else if (Integer.parseInt(response[2].trim()) == 9996) {
-			System.out.println("BS IS FULL TRY AGAIN LATER...");
-		}else if (Integer.parseInt(response[2].trim()) == 1 || Integer.parseInt(response[2].trim()) == 2 ) {
-			System.out.println("Network has more clients");
-			
-			//ONLY TWO OTHER CLIENTS SHOULD GET FROM BS
-			for (int i = 0; i <= Integer.parseInt(response[2].trim()); i += 2) {
-				neghbours.add(response[3+i]+ " " +response[4+i]);
+
+		new Thread(new Runnable() {
+
+			@Override
+			public void run() {
+				// TODO Auto-generated method stub
+				listen();
+
 			}
-			
+		}).start();
+
+		if (Integer.parseInt(response[2].trim()) == 9998) {
+			System.out.println("CLIENT IS ALREADY REGISTERED...");
+		} else if (Integer.parseInt(response[2].trim()) == 9999) {
+			System.out.println("COMMAND ERROR ...");
+		} else if (Integer.parseInt(response[2].trim()) == 9997) {
+			System.out.println("CANNOT REGISTER PLEASE TRY DIFFRENT PORT OR IP...");
+		} else if (Integer.parseInt(response[2].trim()) == 9996) {
+			System.out.println("BS IS FULL TRY AGAIN LATER...");
+		} else if (Integer.parseInt(response[2].trim()) == 1 || Integer.parseInt(response[2].trim()) == 2) {
+			System.out.println("Network has more clients");
+
+			// ONLY TWO OTHER CLIENTS SHOULD GET FROM BS
+			for (int i = 0; i <= Integer.parseInt(response[2].trim()); i += 2) {
+				neghbours.add(response[3 + i] + " " + response[4 + i]);
+			}
+
+			System.out.println("SEND OUT THE JOIN MESSAGE..........................");
 			connect();
 		}
-		
+
 	}
 	
     // UNREGISTER FROM NETWORK
@@ -90,11 +101,12 @@ public class UDPClient{
 	}
 	
 	private void connect() {
+		System.out.println("inside connect");
 		for (int i = 0; i < neghbours.size(); i++) {
 			String[] text = neghbours.get(i).split(" ");
 			try {
 				joinNeghbour(InetAddress.getByName("localhost"), Integer.parseInt(text[1].trim()));   //TODO NEED TO CHANGE THE IP
-				listen();
+				
 			} catch (NumberFormatException e) {
 				//  Auto-generated catch block
 				e.printStackTrace();
@@ -112,8 +124,8 @@ public class UDPClient{
 			DataPacket = new DatagramPacket(data, data.length);
 			try {
 				clientSocket.receive(DataPacket);
-				String response = DataPacket.getData().toString();
-				System.out.println(response);
+//				String response = DataPacket.getData()();
+				System.out.println(DataPacket.getData());
 			} catch (IOException e) {
 				//  Auto-generated catch block
 				e.printStackTrace();
