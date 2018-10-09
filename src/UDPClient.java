@@ -1,8 +1,9 @@
 import java.net.*;
 import java.util.ArrayList;
+import java.util.Map;
 import java.io.*;
 
-public class UDPClient{
+public class UDPClient implements Runnable{
 	
 	private int myPort;
 	private String username;
@@ -11,9 +12,11 @@ public class UDPClient{
 	
 	private byte[] data = new byte[65536];
 	private DatagramSocket clientSocket;
-	private DatagramPacket DataPacket;
+	private DatagramPacket sendPacket;
+	private DatagramPacket recivePacket;
 	private InetAddress myAddress;
-	private ArrayList<String> neghbours = new ArrayList<>();
+	private ArrayList<String> neghbours = new ArrayList<>(); // contain neghbour nodes
+	private ArrayList<String> content = new ArrayList<>();	// contain the list of movies
 	
 	public UDPClient(int port, String username) throws UnknownHostException, SocketException {
 		this.myPort = port;
@@ -27,13 +30,12 @@ public class UDPClient{
 		// FORM THE MESSAGE
 		String message = " REG " + myAddress + " " + myPort + " " + username;
 		message = String.format("%04d", message.length() + 4) + message;
-		System.out.println("SEND JOIN MESSAGE : " + message);
+		System.out.println("SEND REGISTER MESSAGE FROM "+username+" : " + message);
 
 		// SEND THE MESSAGE AND RECIVE THE RESPONCE FROM THE SERVER
 		String ACK = sendMessage(message, serverIP, serverPort);
 
-		System.out.print("SERVER RESPONSE : ");
-		System.out.println(ACK);
+		System.out.println("SERVER RESPONSE TO "+username+" : "+ACK);
 
 		String[] response = ACK.split(" ");
 
@@ -49,22 +51,29 @@ public class UDPClient{
 
 		if (Integer.parseInt(response[2].trim()) == 9998) {
 			System.out.println("CLIENT IS ALREADY REGISTERED...");
+			if (neghbours.isEmpty()) {
+				unregisterNetwork();
+				registerNetwork();
+			}
 		} else if (Integer.parseInt(response[2].trim()) == 9999) {
 			System.out.println("COMMAND ERROR ...");
 		} else if (Integer.parseInt(response[2].trim()) == 9997) {
 			System.out.println("CANNOT REGISTER PLEASE TRY DIFFRENT PORT OR IP...");
+			registerNetwork();
 		} else if (Integer.parseInt(response[2].trim()) == 9996) {
 			System.out.println("BS IS FULL TRY AGAIN LATER...");
 		} else if (Integer.parseInt(response[2].trim()) == 1 || Integer.parseInt(response[2].trim()) == 2) {
 			System.out.println("Network has more clients");
 
 			// ONLY TWO OTHER CLIENTS SHOULD GET FROM BS
+			System.out.println(username + " SAVING NEIGHBOURS GOT FROM THE SERVER...");
 			for (int i = 0; i <= Integer.parseInt(response[2].trim()); i += 2) {
 				neghbours.add(response[3 + i] + " " + response[4 + i]);
 			}
 
 			System.out.println("SEND OUT THE JOIN MESSAGE..........................");
-			connect();
+		} else {
+			System.out.println(username+" IS THE FIRST NODE IN THE NETWORK..");
 		}
 
 	}
@@ -74,14 +83,13 @@ public class UDPClient{
 		//FORM THE MESSAGE
 		String message = " UNREG "+myAddress+" "+myPort+" "+ username;
 		message = String.format("%04d", message.length()+ 4) + message;
-		System.out.println("SEND JOIN MESSAGE : " + message);
+		System.out.println("SEND UNREGISTER MESSAGE FROM "+ username +" : " + message);
 		
 		//SEND THE MESSAGE AND RECIVE THE RESPONCE FROM THE SERVER
 		String ACK = sendMessage(message, serverIP, serverPort);
 		
 		
-		System.out.print("SERVER RESPONSE : ");
-		System.out.println(ACK);
+		System.out.print("SERVER RESPONSE TO "+username+": "+ACK);
 
 	}
 	
@@ -91,41 +99,59 @@ public class UDPClient{
 	public void joinNeghbour(InetAddress neghbourAddress, int neghbourPort) {
 		String message = " JOIN "+myAddress+" "+myPort;
 		message = String.format("%04d",  message.length()+ 4) + message;
-		System.out.println("SEND JOIN MESSAGE : " + message);
+		System.out.println("SEND JOIN MESSAGE FROM "+ username +" : " + message);
 		
 		//SEND THE MESSAGE AND RECIVE THE RESPONCE FROM THE SERVER
 		String ACK = sendMessage(message, neghbourAddress, neghbourPort);
 		
-		System.out.print("SERVER RESPONSE : ");
+		System.out.print(username+" GOT A ACKNOLEDGEMENT FROM : "+ACK);
 		System.out.println(ACK);
 	}
 	
-	private void connect() {
-		System.out.println("inside connect");
-		for (int i = 0; i < neghbours.size(); i++) {
-			String[] text = neghbours.get(i).split(" ");
-			try {
-				joinNeghbour(InetAddress.getByName("localhost"), Integer.parseInt(text[1].trim()));   //TODO NEED TO CHANGE THE IP
+	public void connect() {
+		new Thread(new Runnable() {
+			
+			@Override
+			public void run() {
+				// TODO Auto-generated method stub
 				
-			} catch (NumberFormatException e) {
-				//  Auto-generated catch block
-				e.printStackTrace();
-			} catch (UnknownHostException e) {
-				//  Auto-generated catch block
-				e.printStackTrace();
+				System.out.println("SENDING CONNECT MESSAGE TO "+ neghbours.size()+" FROM "+username);
+				for (int i = 0; i < neghbours.size(); i++) {
+					String[] text = neghbours.get(i).split(" ");
+					try {
+						System.out.println(neghbours.get(i));
+						joinNeghbour(InetAddress.getByName("localhost"), Integer.parseInt(text[1].trim()));   //TODO NEED TO CHANGE THE IP
+//						Thread.sleep(500);
+					} catch (NumberFormatException e) {
+						//  Auto-generated catch block
+						e.printStackTrace();
+					} catch (UnknownHostException e) {
+						//  Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
 			}
-		}
+		}).start();
+		
 	}
 	
 	private void listen() {
 		while (true) {
-			System.out.println(username+" is listening for incoming");
-			data = new byte[65536];
-			DataPacket = new DatagramPacket(data, data.length);
+			System.out.println(username+" IS LISTING FOR INCOMMING PACKATES");
+			byte[] data_1 = new byte[65536];
+			DatagramPacket d = new DatagramPacket(data_1, data_1.length);
 			try {
-				clientSocket.receive(DataPacket);
-//				String response = DataPacket.getData()();
-				System.out.println(DataPacket.getData());
+				clientSocket.receive(d);
+				String response = new String(d.getData());
+				System.out.println(username+ " RECEAVE A MESSAGE : "+response);
+				
+				String[] a = response.split(" ");
+				
+				if (a[1].trim().equals("JOIN")) {
+					String message = "GOT YOUR MESSAGE SENDING REPLY FROM : "+username + " TO : "+a[3].trim();
+
+					sendMessage(message, InetAddress.getByName("localhost"), Integer.parseInt(a[3].trim()));
+				}
 			} catch (IOException e) {
 				//  Auto-generated catch block
 				e.printStackTrace();
@@ -137,33 +163,44 @@ public class UDPClient{
 		data = message.getBytes();
 		
 		//SEND DATA
-		DataPacket = new DatagramPacket(data,data.length,neibhourAddress,neghbourPort);
+		sendPacket = new DatagramPacket(data,data.length,neibhourAddress,neghbourPort);
 		try {
-			clientSocket.send(DataPacket);
+			clientSocket.send(sendPacket);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
-			System.out.println("JOIN TO NETWORK FAILD WHEN SENDING MESSAGE: ERROR -> ");
+			System.out.println("FAILD WHEN SENDING MESSAGE: ERROR -> ");
 			e.printStackTrace();
+			return "none";
 		}
 		
 		//RECIVE THE DATA FROM RESPONSE
 		data = new byte[65536];
-		DataPacket = new DatagramPacket(data, data.length);
+		recivePacket = new DatagramPacket(data, data.length);
 		try {
-			clientSocket.receive(DataPacket);
+			clientSocket.receive(recivePacket);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
-			System.out.println("JOIN TO NETWORK FAILD WHEN RECIVEING MESSAGE: ERROR -> ");
+			System.out.println("NETWORK FAILD WHEN RECIVEING MESSAGE: ERROR -> ");
 			e.printStackTrace();
+			return "none";
 		}
 		//RETURN THE RESPONSE
-		return new String(DataPacket.getData());
+		return new String(recivePacket.getData());
 	}
 	
 	public void closeSocket() {
 		//CLOSE THE CONNECTION
 		clientSocket.close();
 		System.out.println("Client Socket Closed....");
+	}
+
+	@Override
+	public void run() {
+		// TODO Auto-generated method stub
+		
+		System.out.println(username+" CLIENT IS ON.....");
+		
+		
 	}
 	
 	
