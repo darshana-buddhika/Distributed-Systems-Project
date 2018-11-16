@@ -1,5 +1,9 @@
 import java.net.*;
 import java.util.ArrayList;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.io.*;
 
 public class UDPClient implements Runnable {
@@ -8,6 +12,7 @@ public class UDPClient implements Runnable {
 	private String username;
 	private InetAddress serverIP = InetAddress.getByName("127.0.0.1");
 	private final int serverPort = 55555;
+	private boolean finished = false;
 
 	private byte[] data = new byte[65536];
 	private DatagramSocket clientSocket;
@@ -21,12 +26,12 @@ public class UDPClient implements Runnable {
 		this.myPort = port;
 		this.username = username;
 		this.myAddress = InetAddress.getByName("127.0.0.1");
-		// this.clientSocket = new DatagramSocket();
+
 	}
 
-	// Register method
+	// Register with the network for the first time
 	public void registerNetwork() {
-		// Constructing the register message
+
 		String message = " REG " + myAddress + " " + myPort + " " + username;
 		message = String.format("%04d", message.length() + 4) + message;
 		System.out.println(username + " SENDING REGISTER MESSAGE TO BOOTSTRAP SERVER --> MESSAGE : " + message);
@@ -56,20 +61,22 @@ public class UDPClient implements Runnable {
 				System.out.println("BOOTSTRAP IS FULL TRY AGAIN LATER...");
 			} else { // if (Integer.parseInt(response[2].trim()) == 1 ||
 						// Integer.parseInt(response[2].trim()) == 2)
-				System.out.println("Network has more clients");
+				System.out.println("Network has more nodes");
 
-				// ONLY TWO OTHER CLIENTS SHOULD GET FROM BS
-				System.out.println(username + " SAVING NEIGHBOURS GOT FROM THE SERVER...");
+				// ONLY TWO OTHER CLIENTS SHOULD GET FROM bootstrap server
+				System.out.println(username + " SAVING other nodes GOT FROM THE SERVER...");
 				for (int i = 0; i <= Integer.parseInt(response[2].trim()); i += 2) {
 					neighbours.add(new Neighbour((response[3 + i]).substring(1), response[4 + i].trim()));
 				}
 
 			}
+
+			// Start listening on a new thread for incoming packets
 			new Thread(new Runnable() {
 
 				@Override
 				public void run() {
-					// TODO Auto-generated method stub
+
 					listen();
 				}
 			}).start();
@@ -78,24 +85,25 @@ public class UDPClient implements Runnable {
 			System.out.println(username + " FAILD TO CONNECT TO SERVER");
 		}
 
+		connect();
+
 	}
 
-	// Unregister method
+	// Node unregister from the network(graceful departure)
 	public void unregisterNetwork() {
-		// Constructing the unregister message
+
 		String message = " UNREG " + myAddress + " " + myPort + " " + username;
 		message = String.format("%04d", message.length() + 4) + message;
 
 		System.out.println("SEND UNREGISTER MESSAGE FROM " + username + " : " + message);
 
-		// SEND THE MESSAGE AND RECIVE THE RESPONCE FROM THE SERVER
 		String ACK = sendMessage(message, serverIP, serverPort);
-		closeSocket();
+
 		System.out.print("SERVER RESPONSE TO " + username + ": " + ACK);
 
 	}
 
-	// JOIN NEBHOUR
+	// Node send join other nodes in the neighbor list
 	public void joinNeghbour(InetAddress neghbourAddress, int neghbourPort) {
 		String message = " JOIN " + myAddress + " " + myPort;
 		message = String.format("%04d", message.length() + 4) + message;
@@ -105,44 +113,41 @@ public class UDPClient implements Runnable {
 		String ACK = sendMessage(message, neghbourAddress, neghbourPort);
 
 		System.out.print(username + " GOT A ACKNOLEDGEMENT FROM : " + ACK);
-		System.out.println(ACK);
 	}
 
+	// Send JOIN message to other nodes in a new thread for each node
 	public void connect() {
 		new Thread(new Runnable() {
 
 			@Override
 			public void run() {
-				// TODO Auto-generated method stub
 
-				System.out.println(username + " SENDING CONNECT MESSAGE TO " + neighbours.size() + " NEIGHBOURS FROM ");
-				for (int i = 0; i < neighbours.size(); i++) {
-		
+				System.out.println(username + " SENDING JOIN MESSAGE TO " + neighbours.size() + " NEIGHBOURS");
+				int numberOfNodes = neighbours.size();
+				finished = false;
+				for (int i = 0; i < numberOfNodes; i++) {
 					try {
-						System.out.println(neighbours.get(i).getPort());
-						joinNeghbour(InetAddress.getByName("127.0.0.1"), neighbours.get(i).getPort()); // TODO
-																										// NEED
-						// TO CHANGE
-						// THE IP
-						// Thread.sleep(500);
+
+						joinNeghbour(neighbours.get(i).getIpAddress(), neighbours.get(i).getPort());
+
 					} catch (NumberFormatException e) {
-						// Auto-generated catch block
-						e.printStackTrace();
-					} catch (UnknownHostException e) {
-						// Auto-generated catch block
 						e.printStackTrace();
 					}
 				}
-				
-				System.out.println("neighbours of" + username);
-				getNeighbours();
+
+				System.out.println("Neighbours of " + username);
+				finished = true;
+
 			}
-			
+
 		}).start();
 
 	}
 
+	// Listen for incoming packets
 	private void listen() {
+
+		ArrayList<Neighbour> tempList = new ArrayList<>();
 		if (clientSocket == null) {
 			try {
 				clientSocket = new DatagramSocket(myPort);
@@ -153,35 +158,51 @@ public class UDPClient implements Runnable {
 		}
 		while (true) {
 			System.out.println(username + " IS LISTING FOR INCOMMING PACKATES");
+
 			byte[] data_1 = new byte[65536];
 			DatagramPacket d = new DatagramPacket(data_1, data_1.length);
 			try {
 				clientSocket.receive(d);
 				String response = new String(d.getData());
-				System.out.println(username + " RECEAVE A MESSAGE : " + response);
+				System.out.println(username + " RECEAVE A DATA : " + response);
 
 				String[] a = response.split(" ");
 
 				if (a[1].trim().equals("JOIN")) {
-					String message = "GOT YOUR MESSAGE SENDING REPLY FROM : " + username + " TO : " + a[3].trim();
+					String message = "JOIN OK";
 
 					sendMessage(message, d.getAddress(), d.getPort());
-					
-//	Add new neighbour to the list of neighbours
-					neighbours.add(new Neighbour(a[2].trim().substring(1),a[3].trim()));
+
+					// Add new neighbor to the list of neighbors
+					Neighbour tempNeighbour = new Neighbour(a[2].trim().substring(1), a[3].trim());
+
+					// Eliminate adding redundant nodes
+					if (!tempList.contains(tempNeighbour)) {
+						tempList.add(tempNeighbour);
+					}
 				}
 			} catch (IOException e) {
-				// Auto-generated catch block
+
 				e.printStackTrace();
 			}
 		}
 	}
 
-	// UDP SEND MESSAGE
+//	private void mearge(ArrayList<Neighbour> original, ArrayList<Neighbour> temp) {
+//		for (Neighbour tempNode : temp) {
+//			for (Neighbour node : original) {
+//				if (!tempNode.getIpAddress().getHostAddress().equals(node.getIpAddress().getHostAddress())
+//						|| (tempNode.getPort() != node.getPort())) {
+//					neighbours.add(tempNode);
+//				}
+//			}
+//		}
+//	}
+
+	// UDP message sending protocol
 	private String sendMessage(String message, InetAddress neibhourAddress, int neghbourPort) {
 		data = message.getBytes();
-		boolean reply = false;
-		int numberOftyies = 0;
+		int numberOftries = 0;
 
 		try {
 			DatagramSocket s = new DatagramSocket();
@@ -194,9 +215,9 @@ public class UDPClient implements Runnable {
 			data = new byte[65536];
 			recivePacket = new DatagramPacket(data, data.length);
 
-			s.setSoTimeout(3000);
+			s.setSoTimeout(1000);
 
-			while (!reply) {
+			while (true) {
 				try {
 					s.receive(recivePacket);
 					// return new String(recivePacket.getData());
@@ -209,54 +230,44 @@ public class UDPClient implements Runnable {
 
 				} catch (SocketTimeoutException e) {
 
-					System.out.println("Timeout reached sending message again");
-					if (numberOftyies < 1) {
+					System.out.println(username + " Timeout reached sending message again");
+					if (numberOftries < 1) {
 						s.send(sendPacket);
-						numberOftyies++;
+						numberOftries++;
 
 					} else {
+						System.out.println(username + " Message sending failed..");
 						s.close();
 						break;
 					}
-
 				}
 			}
 
-			return null;
-			// RETURN THE RESPONSE
-
 		} catch (SocketException e1) {
-			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			System.out.println("FAILD WHEN SENDING MESSAGE: ERROR -> ");
 			e.printStackTrace();
 		}
 
 		return null;
-		// SEND DATA
 
 	}
 
 	public void closeSocket() {
-		// CLOSE THE CONNECTION
 		clientSocket.close();
 		System.out.println("Client Socket Closed....");
 	}
-	
+
 	@Override
 	public void run() {
-		// TODO Auto-generated method stub
-
 		System.out.println(username + " CLIENT IS ON.....");
 
 	}
 
 	public void getNeighbours() {
 		for (Neighbour n : neighbours) {
-			
-			System.out.println(username + "Neighbour address " + n.getIpAddress() + " and port " + n.getPort());
+			System.out.println(username + " Neighbour address " + n.getIpAddress() + " and port " + n.getPort());
 		}
 	}
 
