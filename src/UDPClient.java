@@ -1,9 +1,11 @@
 import java.net.*;
 import java.util.ArrayList;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.Calendar;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
 import java.io.*;
 
 public class UDPClient implements Runnable {
@@ -19,8 +21,9 @@ public class UDPClient implements Runnable {
 	private DatagramPacket sendPacket;
 	private DatagramPacket recivePacket;
 	private InetAddress myAddress;
-	private ArrayList<Neighbour> neighbours = new ArrayList<>(); // contain neighbour nodes
-	private ArrayList<String> content = new ArrayList<>(); // contain the list of movies
+	private List<Neighbour> neighbours = Collections.synchronizedList(new ArrayList<Neighbour>()); // contain neighbour
+	private ArrayList<Neighbour> content = new ArrayList<>(); // nodes
+	private Map<Integer, Neighbour> tempList = new HashMap<Integer, Neighbour>(); // contain the list of movies
 
 	public UDPClient(int port, String username) throws UnknownHostException, SocketException {
 		this.myPort = port;
@@ -124,7 +127,7 @@ public class UDPClient implements Runnable {
 
 				System.out.println(username + " SENDING JOIN MESSAGE TO " + neighbours.size() + " NEIGHBOURS");
 				int numberOfNodes = neighbours.size();
-				finished = false;
+
 				for (int i = 0; i < numberOfNodes; i++) {
 					try {
 
@@ -136,7 +139,6 @@ public class UDPClient implements Runnable {
 				}
 
 				System.out.println("Neighbours of " + username);
-				finished = true;
 
 			}
 
@@ -147,7 +149,6 @@ public class UDPClient implements Runnable {
 	// Listen for incoming packets
 	private void listen() {
 
-		ArrayList<Neighbour> tempList = new ArrayList<>();
 		if (clientSocket == null) {
 			try {
 				clientSocket = new DatagramSocket(myPort);
@@ -173,13 +174,17 @@ public class UDPClient implements Runnable {
 
 					sendMessage(message, d.getAddress(), d.getPort());
 
-					// Add new neighbor to the list of neighbors
+					// // Add new neighbor to the list of neighbors
 					Neighbour tempNeighbour = new Neighbour(a[2].trim().substring(1), a[3].trim());
+					// !tempNeighbour.getIpAddress().getHostAddress().equals(node.getIpAddress().getHostAddress())
+					//// || (tempNeighbour.getPort() != node.getPort())
 
-					// Eliminate adding redundant nodes
-					if (!tempList.contains(tempNeighbour)) {
-						tempList.add(tempNeighbour);
+					if (tempList.containsKey(tempNeighbour.getPort())) {
+						continue;
+					} else {
+						tempList.put(tempNeighbour.getPort(), tempNeighbour);
 					}
+
 				}
 			} catch (IOException e) {
 
@@ -188,16 +193,18 @@ public class UDPClient implements Runnable {
 		}
 	}
 
-//	private void mearge(ArrayList<Neighbour> original, ArrayList<Neighbour> temp) {
-//		for (Neighbour tempNode : temp) {
-//			for (Neighbour node : original) {
-//				if (!tempNode.getIpAddress().getHostAddress().equals(node.getIpAddress().getHostAddress())
-//						|| (tempNode.getPort() != node.getPort())) {
-//					neighbours.add(tempNode);
-//				}
-//			}
-//		}
-//	}
+	// private void mearge(ArrayList<Neighbour> original, ArrayList<Neighbour> temp)
+	// {
+	// for (Neighbour tempNode : temp) {
+	// for (Neighbour node : original) {
+	// if
+	// (!tempNode.getIpAddress().getHostAddress().equals(node.getIpAddress().getHostAddress())
+	// || (tempNode.getPort() != node.getPort())) {
+	// neighbours.add(tempNode);
+	// }
+	// }
+	// }
+	// }
 
 	// UDP message sending protocol
 	private String sendMessage(String message, InetAddress neibhourAddress, int neghbourPort) {
@@ -211,11 +218,15 @@ public class UDPClient implements Runnable {
 
 			s.send(sendPacket);
 
-			// RECIVE THE DATA FROM RESPONSE
 			data = new byte[65536];
 			recivePacket = new DatagramPacket(data, data.length);
 
-			s.setSoTimeout(1000);
+			// Generate a random number between 1000 and 3000
+			Calendar calendar = Calendar.getInstance();
+			long mills = calendar.getTimeInMillis();
+			int randomTimeout = Math.toIntExact((mills % 2000) + 1000);
+
+			s.setSoTimeout(randomTimeout);
 
 			while (true) {
 				try {
@@ -267,6 +278,10 @@ public class UDPClient implements Runnable {
 
 	public void getNeighbours() {
 		for (Neighbour n : neighbours) {
+			System.out.println(username + " Neighbour address " + n.getIpAddress() + " and port " + n.getPort());
+		}
+
+		for (Neighbour n : tempList.values()) {
 			System.out.println(username + " Neighbour address " + n.getIpAddress() + " and port " + n.getPort());
 		}
 	}
