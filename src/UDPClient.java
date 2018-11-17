@@ -5,7 +5,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.io.*;
 
 public class UDPClient implements Runnable {
@@ -174,10 +173,8 @@ public class UDPClient implements Runnable {
 
 					sendMessage(message, d.getAddress(), d.getPort());
 
-					// // Add new neighbor to the list of neighbors
+					// Add new neighbor to the list of neighbors
 					Neighbour tempNeighbour = new Neighbour(a[2].trim().substring(1), a[3].trim());
-					// !tempNeighbour.getIpAddress().getHostAddress().equals(node.getIpAddress().getHostAddress())
-					//// || (tempNeighbour.getPort() != node.getPort())
 
 					if (tempList.containsKey(tempNeighbour.getPort())) {
 						continue;
@@ -192,19 +189,6 @@ public class UDPClient implements Runnable {
 			}
 		}
 	}
-
-	// private void mearge(ArrayList<Neighbour> original, ArrayList<Neighbour> temp)
-	// {
-	// for (Neighbour tempNode : temp) {
-	// for (Neighbour node : original) {
-	// if
-	// (!tempNode.getIpAddress().getHostAddress().equals(node.getIpAddress().getHostAddress())
-	// || (tempNode.getPort() != node.getPort())) {
-	// neighbours.add(tempNode);
-	// }
-	// }
-	// }
-	// }
 
 	// UDP message sending protocol
 	private String sendMessage(String message, InetAddress neibhourAddress, int neghbourPort) {
@@ -221,7 +205,7 @@ public class UDPClient implements Runnable {
 			data = new byte[65536];
 			recivePacket = new DatagramPacket(data, data.length);
 
-			// Generate a random number between 1000 and 3000
+			// Generate a random number between 1000 and 3000 to set the socket timeout
 			Calendar calendar = Calendar.getInstance();
 			long mills = calendar.getTimeInMillis();
 			int randomTimeout = Math.toIntExact((mills % 2000) + 1000);
