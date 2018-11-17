@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.io.*;
 
 public class UDPClient implements Runnable {
@@ -13,21 +14,26 @@ public class UDPClient implements Runnable {
 	private String username;
 	private InetAddress serverIP = InetAddress.getByName("127.0.0.1");
 	private final int serverPort = 55555;
-	private boolean finished = false;
 
 	private byte[] data = new byte[65536];
 	private DatagramSocket clientSocket;
 	private DatagramPacket sendPacket;
 	private DatagramPacket recivePacket;
 	private InetAddress myAddress;
+
 	private List<Neighbour> neighbours = Collections.synchronizedList(new ArrayList<Neighbour>()); // contain neighbour
-	private ArrayList<Neighbour> content = new ArrayList<>(); // nodes
+	private Map<String, ArrayList<Neighbour>> gossipContent = new HashMap<String, ArrayList<Neighbour>>(); // about
+																											// other
+																											// nodes
+	private ArrayList<String> files = new ArrayList<>(); // set of files have on the node
 	private Map<Integer, Neighbour> tempList = new HashMap<Integer, Neighbour>(); // contain the list of movies
 
 	public UDPClient(int port, String username) throws UnknownHostException, SocketException {
 		this.myPort = port;
 		this.username = username;
-		this.myAddress = InetAddress.getByName("127.0.0.1");
+		this.myAddress = InetAddress.getByName(InetAddress.getLocalHost().getHostAddress().substring(1)); //
+
+		fileInitializer();
 
 	}
 
@@ -61,8 +67,7 @@ public class UDPClient implements Runnable {
 				registerNetwork();
 			} else if (Integer.parseInt(response[2].trim()) == 9996) {
 				System.out.println("BOOTSTRAP IS FULL TRY AGAIN LATER...");
-			} else { // if (Integer.parseInt(response[2].trim()) == 1 ||
-						// Integer.parseInt(response[2].trim()) == 2)
+			} else {
 				System.out.println("Network has more nodes");
 
 				// ONLY TWO OTHER CLIENTS SHOULD GET FROM bootstrap server
@@ -114,7 +119,7 @@ public class UDPClient implements Runnable {
 		// SEND THE MESSAGE AND RECIVE THE RESPONCE FROM THE SERVER
 		String ACK = sendMessage(message, neghbourAddress, neghbourPort);
 
-		System.out.print(username + " GOT A ACKNOLEDGEMENT FROM : " + ACK);
+		System.out.println(username + " GOT A ACKNOLEDGEMENT FROM : " + ACK);
 	}
 
 	// Send JOIN message to other nodes in a new thread for each node
@@ -267,6 +272,36 @@ public class UDPClient implements Runnable {
 
 		for (Neighbour n : tempList.values()) {
 			System.out.println(username + " Neighbour address " + n.getIpAddress() + " and port " + n.getPort());
+		}
+	}
+
+	public void gossiping() {
+
+	}
+
+	private void fileInitializer() {
+		String[] allFiles = { "Inception", "Batman", "Prestige", "Avatar", "Superman", "Wonder Women",
+				"Sherlock Holmes", "Green Lantern", "Captian America", "Ironman", "Avengers", "Black Panther", "Antman",
+				"Spiderman", "Hulk", "Thor", "Deadpool", "X Men", "Aquaman", "Flash" };
+
+		Random rand = new Random();
+		
+		for (int i = 0; i < 5; i++) {
+//			Calendar calendar = Calendar.getInstance();
+//			long mills = calendar.getTimeInMillis();
+//			int random = Math.toIntExact((mills % 16));
+			String name = allFiles[rand.nextInt(20)];
+			if (!files.contains(name)) {
+				files.add(name);
+			}
+			
+		}
+
+	}
+
+	public void getFiles() {
+		for (String file : files) {
+			System.out.println(file);
 		}
 	}
 

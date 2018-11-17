@@ -30,6 +30,8 @@ public class Main {
 				int input = scanner.nextInt();
 				
 				nodesInTheNetwork.get(input).getNeighbours();
+				nodesInTheNetwork.get(input).getFiles();
+				
 			
 			}
 		} catch (UnknownHostException e) {
