@@ -3,6 +3,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -24,9 +25,9 @@ public class UDPClient implements Runnable {
 
 	private List<Neighbour> neighbours = Collections.synchronizedList(new ArrayList<Neighbour>()); // contain neighbour
 	private Vector<Neighbour> knownList = new Vector<>();
-	private Map<String, ArrayList<Neighbour>> gossipContent = new HashMap<String, ArrayList<Neighbour>>(); // about
-																											// other
-																											// nodes
+	private Hashtable<String, ArrayList<Neighbour>> gossipContent = new Hashtable<String, ArrayList<Neighbour>>(); // about
+	// other
+	// nodes
 	private ArrayList<String> files = new ArrayList<>(); // set of files have on the node
 	private Map<Integer, Neighbour> tempList = new HashMap<Integer, Neighbour>(); // contain the list of movies
 
@@ -35,7 +36,7 @@ public class UDPClient implements Runnable {
 		this.username = username;
 		this.myAddress = InetAddress.getByName("127.0.0.1"); // InetAddress.getLocalHost().getHostAddress().substring(1)
 
-		fileInitializer();
+		fileInitializer(); // Initialize files for the nodes
 
 	}
 
@@ -47,7 +48,7 @@ public class UDPClient implements Runnable {
 		System.out.println(username + " SENDING REGISTER MESSAGE TO BOOTSTRAP SERVER --> MESSAGE : " + message);
 
 		// Send message
-		String ACK = sendMessageWithBackofftime(message, serverIP, serverPort);
+		String ACK = sendMessageWithBackofftime(message, serverIP, serverPort, false);
 
 		if (ACK != null) {
 			System.out.println("SERVER RESPONSE TO " + username + " : " + ACK);
@@ -106,7 +107,7 @@ public class UDPClient implements Runnable {
 
 		System.out.println("SEND UNREGISTER MESSAGE FROM " + username + " : " + message);
 
-		String ACK = sendMessageWithBackofftime(message, serverIP, serverPort);
+		String ACK = sendMessageWithBackofftime(message, serverIP, serverPort, false);
 
 		System.out.print("SERVER RESPONSE TO " + username + ": " + ACK);
 
@@ -119,7 +120,7 @@ public class UDPClient implements Runnable {
 		System.out.println("SEND JOIN MESSAGE FROM " + username + " : " + message);
 
 		// SEND THE MESSAGE AND RECIVE THE RESPONCE FROM THE SERVER
-		String ACK = sendMessageWithBackofftime(message, neghbourAddress, neghbourPort);
+		String ACK = sendMessageWithBackofftime(message, neghbourAddress, neghbourPort, true);
 
 		System.out.println(username + " GOT A ACKNOLEDGEMENT FROM : " + ACK);
 	}
@@ -177,9 +178,9 @@ public class UDPClient implements Runnable {
 
 				// Handle JOIN command
 				if (a[1].trim().equals("JOIN")) {
-					String message = "JOIN OK";
+					// String message = "JOIN OK";
 
-					sendMessage(message, d.getAddress(), d.getPort());
+					// sendMessage(message, d.getAddress(), d.getPort());
 
 					// Add new neighbor to the list of neighbors
 					Neighbour tempNeighbour = new Neighbour(a[2].trim().substring(1), a[3].trim());
@@ -207,8 +208,24 @@ public class UDPClient implements Runnable {
 					message = " SEROK " + numberOfMatches + " " + myAddress + " " + myPort + message;
 					message = String.format("%04d", message.length() + 4) + message;
 
-					sendMessageWithBackofftime(message, d.getAddress(), d.getPort()); // InetAddress.getByName(a[2].trim().substring(1))
-																		// Integer.parseInt(a[3].trim())
+					sendMessageWithBackofftime("ACKOK", d.getAddress(), d.getPort(), false); //
+					//
+
+					if (numberOfMatches > 0) {
+						sendMessageWithBackofftime(message, InetAddress.getByName(a[2].trim().substring(1)),
+								Integer.parseInt(a[3].trim()), true);
+					} else {
+
+					}
+
+				} else if (a[1].trim().equals("SEROK")) {
+
+					if (!a[2].trim().equals("0")) {
+						System.out.println("Node found with the file");
+						System.out.println(response);
+					}
+					
+
 				}
 			} catch (IOException e) {
 
@@ -218,7 +235,7 @@ public class UDPClient implements Runnable {
 	}
 
 	// UDP message sending protocol
-	private String sendMessage(String message, InetAddress neibhourAddress, int neghbourPort) {
+	private String sendMessage(String message, InetAddress neibhourAddress, int neghbourPort, boolean ack) {
 		byte[] data = new byte[65536];
 
 		DatagramPacket sendDataPacket;
@@ -247,6 +264,9 @@ public class UDPClient implements Runnable {
 
 					if (!reciveDataPacket.getData().equals(null)) {
 						System.out.println(username + " Got a reply for the message -> " + message);
+						if (ack) {
+							sendMessage("ACKOK", reciveDataPacket.getAddress(), reciveDataPacket.getPort(), false);
+						}
 						return new String(reciveDataPacket.getData());
 					} else {
 						break;
@@ -257,7 +277,7 @@ public class UDPClient implements Runnable {
 					System.out.println(username + " Timeout reached for message -> " + message);
 					socket.close();
 					break;
-		
+
 				}
 			}
 
@@ -272,12 +292,13 @@ public class UDPClient implements Runnable {
 
 	}
 
-	private String sendMessageWithBackofftime(String message, InetAddress neibhourAddress, int neghbourPort) {
+	private String sendMessageWithBackofftime(String message, InetAddress neibhourAddress, int neghbourPort,
+			boolean ack) {
 
-		String reply = sendMessage(message, neibhourAddress, neghbourPort);
+		String reply = sendMessage(message, neibhourAddress, neghbourPort, ack);
 		if (reply == null) {
 			System.out.println("Faild to connect first time attempting for the second time message -> " + message);
-			String secondReply = sendMessage(message, neibhourAddress, neghbourPort);
+			String secondReply = sendMessage(message, neibhourAddress, neghbourPort, ack);
 
 			return secondReply;
 		}
@@ -340,17 +361,7 @@ public class UDPClient implements Runnable {
 			for (Neighbour node : knownList) {
 
 				new Thread(() -> {
-					String ack = sendMessage(message, node.getIpAddress(), node.getPort());
-					System.out.println(ack);
-					if (ack != null) {
-						String[] result = ack.split(" ");
-
-						if (!result[2].trim().equals("0")) {
-							System.out.println("Node found with the file");
-							System.out.println(ack);
-							sendMessage("length SEROK", node.getIpAddress(), node.getPort());
-						}
-					}
+					String ack = sendMessage(message, node.getIpAddress(), node.getPort(), false);
 
 				}).start();
 
