@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Vector;
 import java.io.*;
 
 public class UDPClient implements Runnable {
@@ -17,11 +18,12 @@ public class UDPClient implements Runnable {
 
 	private byte[] data = new byte[65536];
 	private DatagramSocket clientSocket;
-	private DatagramPacket sendPacket;
-	private DatagramPacket recivePacket;
+	// private DatagramPacket sendPacket;
+	// private DatagramPacket recivePacket;
 	private InetAddress myAddress;
 
 	private List<Neighbour> neighbours = Collections.synchronizedList(new ArrayList<Neighbour>()); // contain neighbour
+	private Vector<Neighbour> knownList = new Vector<>();
 	private Map<String, ArrayList<Neighbour>> gossipContent = new HashMap<String, ArrayList<Neighbour>>(); // about
 																											// other
 																											// nodes
@@ -31,7 +33,7 @@ public class UDPClient implements Runnable {
 	public UDPClient(int port, String username) throws UnknownHostException, SocketException {
 		this.myPort = port;
 		this.username = username;
-		this.myAddress = InetAddress.getByName(InetAddress.getLocalHost().getHostAddress().substring(1)); //
+		this.myAddress = InetAddress.getByName("127.0.0.1"); // InetAddress.getLocalHost().getHostAddress().substring(1)
 
 		fileInitializer();
 
@@ -45,7 +47,7 @@ public class UDPClient implements Runnable {
 		System.out.println(username + " SENDING REGISTER MESSAGE TO BOOTSTRAP SERVER --> MESSAGE : " + message);
 
 		// Send message
-		String ACK = sendMessage(message, serverIP, serverPort);
+		String ACK = sendMessageWithBackofftime(message, serverIP, serverPort);
 
 		if (ACK != null) {
 			System.out.println("SERVER RESPONSE TO " + username + " : " + ACK);
@@ -104,7 +106,7 @@ public class UDPClient implements Runnable {
 
 		System.out.println("SEND UNREGISTER MESSAGE FROM " + username + " : " + message);
 
-		String ACK = sendMessage(message, serverIP, serverPort);
+		String ACK = sendMessageWithBackofftime(message, serverIP, serverPort);
 
 		System.out.print("SERVER RESPONSE TO " + username + ": " + ACK);
 
@@ -117,7 +119,7 @@ public class UDPClient implements Runnable {
 		System.out.println("SEND JOIN MESSAGE FROM " + username + " : " + message);
 
 		// SEND THE MESSAGE AND RECIVE THE RESPONCE FROM THE SERVER
-		String ACK = sendMessage(message, neghbourAddress, neghbourPort);
+		String ACK = sendMessageWithBackofftime(message, neghbourAddress, neghbourPort);
 
 		System.out.println(username + " GOT A ACKNOLEDGEMENT FROM : " + ACK);
 	}
@@ -169,10 +171,11 @@ public class UDPClient implements Runnable {
 			try {
 				clientSocket.receive(d);
 				String response = new String(d.getData());
-				System.out.println(username + " RECEAVE A DATA : " + response);
+				System.out.println(username + " RECEAVE DATA : " + response);
 
 				String[] a = response.split(" ");
 
+				// Handle JOIN command
 				if (a[1].trim().equals("JOIN")) {
 					String message = "JOIN OK";
 
@@ -187,6 +190,25 @@ public class UDPClient implements Runnable {
 						tempList.put(tempNeighbour.getPort(), tempNeighbour);
 					}
 
+					// Handle SEARCH operation
+				} else if (a[1].trim().equals("SER")) {
+					String fileName = a[4].trim();
+
+					int numberOfMatches = 0;
+					String message = ""; // length SEROK no_files IP port hops filename1 filename2 ... ...
+
+					for (String file : files) {
+						if (file.toLowerCase().contains(fileName.toLowerCase())) {
+							message = " " + file;
+							numberOfMatches++;
+						}
+					}
+
+					message = " SEROK " + numberOfMatches + " " + myAddress + " " + myPort + message;
+					message = String.format("%04d", message.length() + 4) + message;
+
+					sendMessageWithBackofftime(message, d.getAddress(), d.getPort()); // InetAddress.getByName(a[2].trim().substring(1))
+																		// Integer.parseInt(a[3].trim())
 				}
 			} catch (IOException e) {
 
@@ -197,49 +219,45 @@ public class UDPClient implements Runnable {
 
 	// UDP message sending protocol
 	private String sendMessage(String message, InetAddress neibhourAddress, int neghbourPort) {
-		data = message.getBytes();
-		int numberOftries = 0;
+		byte[] data = new byte[65536];
+
+		DatagramPacket sendDataPacket;
+		DatagramPacket reciveDataPacket;
 
 		try {
-			DatagramSocket s = new DatagramSocket();
+			DatagramSocket socket = new DatagramSocket();
 
-			sendPacket = new DatagramPacket(data, data.length, neibhourAddress, neghbourPort);
+			reciveDataPacket = new DatagramPacket(data, data.length);
 
-			s.send(sendPacket);
+			data = message.getBytes();
+			sendDataPacket = new DatagramPacket(data, data.length, neibhourAddress, neghbourPort);
 
-			data = new byte[65536];
-			recivePacket = new DatagramPacket(data, data.length);
+			socket.send(sendDataPacket);
 
 			// Generate a random number between 1000 and 3000 to set the socket timeout
 			Calendar calendar = Calendar.getInstance();
 			long mills = calendar.getTimeInMillis();
 			int randomTimeout = Math.toIntExact((mills % 2000) + 1000);
 
-			s.setSoTimeout(randomTimeout);
+			socket.setSoTimeout(randomTimeout);
 
 			while (true) {
 				try {
-					s.receive(recivePacket);
-					// return new String(recivePacket.getData());
+					socket.receive(reciveDataPacket);
 
-					if (!recivePacket.getData().equals(null)) {
-						System.out.println("Recive reply");
-						return new String(recivePacket.getData());
+					if (!reciveDataPacket.getData().equals(null)) {
+						System.out.println(username + " Got a reply for the message -> " + message);
+						return new String(reciveDataPacket.getData());
+					} else {
+						break;
 					}
-					System.out.println(new String(recivePacket.getData()).length());
 
 				} catch (SocketTimeoutException e) {
 
-					System.out.println(username + " Timeout reached sending message again");
-					if (numberOftries < 1) {
-						s.send(sendPacket);
-						numberOftries++;
-
-					} else {
-						System.out.println(username + " Message sending failed..");
-						s.close();
-						break;
-					}
+					System.out.println(username + " Timeout reached for message -> " + message);
+					socket.close();
+					break;
+		
 				}
 			}
 
@@ -254,6 +272,19 @@ public class UDPClient implements Runnable {
 
 	}
 
+	private String sendMessageWithBackofftime(String message, InetAddress neibhourAddress, int neghbourPort) {
+
+		String reply = sendMessage(message, neibhourAddress, neghbourPort);
+		if (reply == null) {
+			System.out.println("Faild to connect first time attempting for the second time message -> " + message);
+			String secondReply = sendMessage(message, neibhourAddress, neghbourPort);
+
+			return secondReply;
+		}
+		return reply;
+
+	}
+
 	public void closeSocket() {
 		clientSocket.close();
 		System.out.println("Client Socket Closed....");
@@ -265,13 +296,16 @@ public class UDPClient implements Runnable {
 
 	}
 
+	// Print set of nodes known to given node & merge two list to one
 	public void getNeighbours() {
 		for (Neighbour n : neighbours) {
 			System.out.println(username + " Neighbour address " + n.getIpAddress() + " and port " + n.getPort());
+			knownList.add(n);
 		}
 
 		for (Neighbour n : tempList.values()) {
 			System.out.println(username + " Neighbour address " + n.getIpAddress() + " and port " + n.getPort());
+			knownList.add(n);
 		}
 	}
 
@@ -279,26 +313,54 @@ public class UDPClient implements Runnable {
 
 	}
 
+	// Randomly initialize five files for each node from the list of 20
 	private void fileInitializer() {
-		String[] allFiles = { "Inception", "Batman", "Prestige", "Avatar", "Superman", "Wonder Women",
-				"Sherlock Holmes", "Green Lantern", "Captian America", "Ironman", "Avengers", "Black Panther", "Antman",
-				"Spiderman", "Hulk", "Thor", "Deadpool", "X Men", "Aquaman", "Flash" };
+		String[] allFiles = { "Adventures of Tintin", "Jack and Jill", "Glee", "The Vampire Diarie", "King Arthur",
+				"Windows XP", "Harry Potter", "Kung Fu Panda", "Lady Gaga", "Twilight", "Windows 8",
+				"Mission Impossible", "Turn Up The Music", "Super Mario", "American Pickers", "Microsoft Office 2010",
+				"Happy Feet", "Modern Family", "American Idol", "Hacking for Dummies" };
 
 		Random rand = new Random();
-		
+
 		for (int i = 0; i < 5; i++) {
-//			Calendar calendar = Calendar.getInstance();
-//			long mills = calendar.getTimeInMillis();
-//			int random = Math.toIntExact((mills % 16));
 			String name = allFiles[rand.nextInt(20)];
 			if (!files.contains(name)) {
 				files.add(name);
 			}
-			
+
 		}
 
 	}
 
+	// Search for a file within the network
+	public void searchFiles(String fileName, int hops) {
+		String pre = " SER " + myAddress + " " + myPort + " " + fileName + " " + hops;
+		String message = String.format("%04d", pre.length() + 4) + pre; // length SER IP port file_name hops
+		synchronized (knownList) {
+			for (Neighbour node : knownList) {
+
+				new Thread(() -> {
+					String ack = sendMessage(message, node.getIpAddress(), node.getPort());
+					System.out.println(ack);
+					if (ack != null) {
+						String[] result = ack.split(" ");
+
+						if (!result[2].trim().equals("0")) {
+							System.out.println("Node found with the file");
+							System.out.println(ack);
+							sendMessage("length SEROK", node.getIpAddress(), node.getPort());
+						}
+					}
+
+				}).start();
+
+			}
+
+		}
+
+	}
+
+	// Print files
 	public void getFiles() {
 		for (String file : files) {
 			System.out.println(file);
