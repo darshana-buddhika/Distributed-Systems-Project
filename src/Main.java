@@ -14,9 +14,9 @@ public class Main {
 		Scanner scanner = new Scanner(System.in);
 		try {
 			// Creating 10 nodes for the network
-			for (int i = 0; i < 10; i++) {
+			for (int i = 0; i < 2; i++) {
 
-				nodesInTheNetwork.add(new UDPClient(15000 + i * 2, usernames[i]));
+				nodesInTheNetwork.add(new UDPClient(15010 + i * 2, usernames[i]));
 
 			}
 
@@ -30,7 +30,7 @@ public class Main {
 
 				nodesInTheNetwork.get(input).getNeighbours();
 				nodesInTheNetwork.get(input).getFiles();
-				nodesInTheNetwork.get(input).searchFiles("Adventures", 2);
+				nodesInTheNetwork.get(input).searchFiles("windows", 2);
 
 			}
 		} catch (UnknownHostException e) {

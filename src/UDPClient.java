@@ -14,7 +14,7 @@ public class UDPClient implements Runnable {
 
 	private int myPort;
 	private String username;
-	private InetAddress serverIP = InetAddress.getByName("127.0.0.1");
+	private InetAddress serverIP = InetAddress.getByName(getMyIp());
 	private final int serverPort = 55555;
 
 	private byte[] data = new byte[65536];
@@ -174,14 +174,14 @@ public class UDPClient implements Runnable {
 			}
 		}
 		while (true) {
-			System.out.println(username + " IS LISTING FOR INCOMMING PACKATES");
+//			System.out.println(username + " IS LISTING FOR INCOMMING PACKATES");
 
 			byte[] data_1 = new byte[65536];
 			DatagramPacket d = new DatagramPacket(data_1, data_1.length);
 			try {
 				clientSocket.receive(d);
 				String response = new String(d.getData());
-//				System.out.println(username + " RECEAVE DATA : " + response);
+				System.out.println(username + " RECEAVE DATA : " + response);
 
 				String[] a = response.split(" ");
 
@@ -297,7 +297,7 @@ public class UDPClient implements Runnable {
 					socket.receive(reciveDataPacket);
 
 					if (!reciveDataPacket.getData().equals(null)) {
-//						System.out.println(username + " Got a reply for the message -> " + message);
+						System.out.println(username + " Got a reply for the message -> " + message);
 						if (ack) {
 							sendMessage("ACKOK", reciveDataPacket.getAddress(), reciveDataPacket.getPort(), false);
 						}
@@ -308,7 +308,7 @@ public class UDPClient implements Runnable {
 
 				} catch (SocketTimeoutException e) {
 
-//					System.out.println(username + " Timeout reached for message -> " + message);
+					System.out.println(username + " Timeout reached for message -> " + message);
 					socket.close();
 					break;
 
@@ -331,7 +331,7 @@ public class UDPClient implements Runnable {
 
 		String reply = sendMessage(message, neibhourAddress, neghbourPort, ack);
 		if (reply == null) {
-//			System.out.println("Faild to connect first time attempting for the second time message -> " + message);
+			System.out.println("Faild to connect first time attempting for the second time message -> " + message);
 			String secondReply = sendMessage(message, neibhourAddress, neghbourPort, ack);
 
 			return secondReply;
