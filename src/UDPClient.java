@@ -7,19 +7,23 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Scanner;
 import java.util.Vector;
 import java.io.*;
 
 public class UDPClient implements Runnable {
 
-	private int myPort;
-	private String username;
-	private InetAddress serverIP = InetAddress.getByName(getMyIp());
+	boolean updated = false;
+
+	// Bootstrap server ip and the port
+	private InetAddress serverIP; // = InetAddress.getByName(getMyIp());
 	private final int serverPort = 55555;
 
-	private byte[] data = new byte[65536];
-	private DatagramSocket clientSocket;
+	// Node details
+	private int myPort;
+	private String username;
 	private InetAddress myAddress;
+	private DatagramSocket clientSocket;
 
 	private List<Neighbour> neighbours = Collections.synchronizedList(new ArrayList<Neighbour>()); // contain neighbour
 	private Vector<Neighbour> knownList = new Vector<>();
@@ -27,40 +31,41 @@ public class UDPClient implements Runnable {
 	// other
 	// nodes
 	private ArrayList<String> files = new ArrayList<>(); // set of files have on the node
-	private Map<Integer, Neighbour> tempList = new HashMap<Integer, Neighbour>(); // contain the list of movies
+	private Hashtable<String, Neighbour> knownNodes = new Hashtable<String, Neighbour>(); // contain the list of movies
 
-	public UDPClient(int port, String username) throws UnknownHostException, SocketException {
+	public UDPClient(int port, String username, String serverIp) throws UnknownHostException, SocketException {
 		this.myPort = port;
 		this.username = username;
-		this.myAddress = InetAddress.getByName(getMyIp()); //InetAddress.getByName("127.0.0.1"); // InetAddress.getLocalHost().getHostAddress().substring(1)
-		//System.out.println(myAddress);
+		this.myAddress = InetAddress.getByName(getMyIp());
+		this.serverIP = InetAddress.getByName(serverIp);
+
 		fileInitializer(); // Initialize files for the nodes
-		
 
 	}
-	
-    public String getMyIp() {
-        try(final DatagramSocket socket = new DatagramSocket()){
-            socket.connect(InetAddress.getByName("8.8.8.8"), 10002);
-            return socket.getLocalAddress().getHostAddress();
-        } catch (UnknownHostException | SocketException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-    
+
+	// Get local mechine IP adderss
+	private String getMyIp() {
+		try (final DatagramSocket socket = new DatagramSocket()) {
+			socket.connect(InetAddress.getByName("8.8.8.8"), 10002);
+			return socket.getLocalAddress().getHostAddress();
+		} catch (UnknownHostException | SocketException e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+
 	// Register with the network for the first time
 	public void registerNetwork() {
 
 		String message = " REG " + myAddress + " " + myPort + " " + username;
 		message = String.format("%04d", message.length() + 4) + message;
-		System.out.println(username + " SENDING REGISTER MESSAGE TO BOOTSTRAP SERVER --> MESSAGE : " + message);
+		// System.out.println(username + " SENDING REGISTER MESSAGE TO BOOTSTRAP SERVER
+		// --> MESSAGE : " + message);
 
-		// Send message
 		String ACK = sendMessageWithBackofftime(message, serverIP, serverPort, false);
 
 		if (ACK != null) {
-			System.out.println("SERVER RESPONSE TO " + username + " : " + ACK);
+			// System.out.println("SERVER RESPONSE TO " + username + " : " + ACK);
 
 			String[] response = ACK.split(" ");
 
@@ -76,23 +81,28 @@ public class UDPClient implements Runnable {
 				System.out.println("COMMAND ERROR ...");
 			} else if (Integer.parseInt(response[2].trim()) == 9997) {
 				System.out.println("CANNOT REGISTER PLEASE TRY DIFFRENT PORT OR IP...");
-				// registerNetwork();
+				Scanner input = new Scanner(System.in);
+				int newPort = input.nextInt();
+				this.myPort = newPort;
+				registerNetwork();
 			} else if (Integer.parseInt(response[2].trim()) == 9996) {
 				System.out.println("BOOTSTRAP IS FULL TRY AGAIN LATER...");
 			} else {
-				System.out.println("Network has more nodes");
+				System.out.println(username + " got other nodes in the network from bootstrap server");
 
 				// ONLY TWO OTHER CLIENTS SHOULD GET FROM bootstrap server
-				System.out.println(username + " SAVING other nodes GOT FROM THE SERVER...");
 				for (int i = 0; i <= Integer.parseInt(response[2].trim()); i += 2) {
-					neighbours.add(new Neighbour((response[3 + i]).substring(1), response[4 + i].trim()));
+					if (!knownNodes.containsKey((response[3 + i]).substring(1) + response[4 + i].trim())) {
+						knownNodes.put((response[3 + i]).substring(1) + response[4 + i].trim(),
+								new Neighbour((response[3 + i]).substring(1), response[4 + i].trim()));
+					}
+
 				}
 
 			}
 
 			// Start listening on a new thread for incoming packets
 			new Thread(new Runnable() {
-
 				@Override
 				public void run() {
 
@@ -114,11 +124,12 @@ public class UDPClient implements Runnable {
 		String message = " UNREG " + myAddress + " " + myPort + " " + username;
 		message = String.format("%04d", message.length() + 4) + message;
 
-		System.out.println("SEND UNREGISTER MESSAGE FROM " + username + " : " + message);
+		// System.out.println("SEND UNREGISTER MESSAGE FROM " + username + " : " +
+		// message);
 
 		String ACK = sendMessageWithBackofftime(message, serverIP, serverPort, false);
 
-		System.out.print("SERVER RESPONSE TO " + username + ": " + ACK);
+		// System.out.print("SERVER RESPONSE TO " + username + ": " + ACK);
 
 	}
 
@@ -126,12 +137,21 @@ public class UDPClient implements Runnable {
 	public void joinNeghbour(InetAddress neghbourAddress, int neghbourPort) {
 		String message = " JOIN " + myAddress + " " + myPort;
 		message = String.format("%04d", message.length() + 4) + message;
-//		System.out.println("SEND JOIN MESSAGE FROM " + username + " : " + message);
+		// System.out.println("SEND JOIN MESSAGE FROM " + username + " : " + message);
 
-		// SEND THE MESSAGE AND RECIVE THE RESPONCE FROM THE SERVER
 		String ACK = sendMessageWithBackofftime(message, neghbourAddress, neghbourPort, true);
 
-//		System.out.println(username + " GOT A ACKNOLEDGEMENT FROM : " + ACK);
+		// System.out.println(username + " GOT A ACKNOLEDGEMENT FROM : " + ACK);
+	}
+
+	public void leaveNetwork() {
+		String message = " LEAVE " + myAddress + " " + myPort;
+		message = String.format("%04d", message.length() + 4) + message;
+
+		for (Neighbour node : neighbours) {
+			String ack = sendMessageWithBackofftime(message, node.getIpAddress(), node.getPort(), false);
+		}
+
 	}
 
 	// Send JOIN message to other nodes in a new thread for each node
@@ -141,20 +161,15 @@ public class UDPClient implements Runnable {
 			@Override
 			public void run() {
 
-//				System.out.println(username + " SENDING JOIN MESSAGE TO " + neighbours.size() + " NEIGHBOURS");
-				int numberOfNodes = neighbours.size();
+				// System.out.println(username + " SENDING JOIN MESSAGE TO " + neighbours.size()
+				// + " NEIGHBOURS");
 
-				for (int i = 0; i < numberOfNodes; i++) {
-					try {
+				synchronized (knownNodes) {
+					knownNodes.forEach((key, value) -> {
+						joinNeghbour(value.getIpAddress(), value.getPort());
 
-						joinNeghbour(neighbours.get(i).getIpAddress(), neighbours.get(i).getPort());
-
-					} catch (NumberFormatException e) {
-						e.printStackTrace();
-					}
+					});
 				}
-
-				System.out.println("Neighbours of " + username);
 
 			}
 
@@ -165,42 +180,60 @@ public class UDPClient implements Runnable {
 	// Listen for incoming packets
 	private void listen() {
 
+		// Bind socket to client port for incoming listing
 		if (clientSocket == null) {
 			try {
 				clientSocket = new DatagramSocket(myPort);
 			} catch (SocketException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
 		while (true) {
-//			System.out.println(username + " IS LISTING FOR INCOMMING PACKATES");
+			// System.out.println(username + " IS LISTING FOR INCOMMING PACKATES");
 
-			byte[] data_1 = new byte[65536];
-			DatagramPacket d = new DatagramPacket(data_1, data_1.length);
+			byte[] data = new byte[65536];
+			DatagramPacket inData = new DatagramPacket(data, data.length);
 			try {
-				clientSocket.receive(d);
-				String response = new String(d.getData());
-				System.out.println(username + " RECEAVE DATA : " + response);
+				clientSocket.receive(inData);
+				String response = new String(inData.getData());
+				System.out.println(username + " recive message -> : " + response);
 
 				String[] a = response.split(" ");
 
-				// Handle JOIN command
+				// Handle JOIN message
 				if (a[1].trim().equals("JOIN")) {
-					// String message = "JOIN OK";
-					//
-					// sendMessage(message, d.getAddress(), d.getPort(), false);
+
+					String message = " JOIN OK " + 1;
+					message = String.format("%04d", message.length() + 4) + message;
+					sendMessage(message, inData.getAddress(), inData.getPort(), false);
 
 					// Add new neighbor to the list of neighbors
 					Neighbour tempNeighbour = new Neighbour(a[2].trim().substring(1), a[3].trim());
-
-					if (tempList.containsKey(tempNeighbour.getPort())) {
-						continue;
-					} else {
-						tempList.put(tempNeighbour.getPort(), tempNeighbour);
+					synchronized (knownNodes) {
+						if (!knownNodes
+								.containsKey(tempNeighbour.getIpAddress().getHostAddress() + tempNeighbour.getPort())) {
+							knownNodes.put(tempNeighbour.getIpAddress().getHostAddress() + tempNeighbour.getPort(),
+									tempNeighbour);
+							updated = true;
+						}
 					}
 
-					// Handle SEARCH operation
+					// Handle LEAVE message
+				} else if (a[1].trim().equals("LEAVE")) {
+
+					String ip = a[2].trim();
+					String port = a[3].trim();
+
+					synchronized (knownNodes) {
+						if (knownNodes.containsKey(ip + port)) {
+							knownNodes.remove(ip + port);
+							updated = true;
+						}
+					}
+
+					sendMessage("LEAVEOK", inData.getAddress(), inData.getPort(), false);
+
+					// Handle SEARCH message
 				} else if (a[1].trim().equals("SER")) {
 					String fileName = a[4].trim();
 
@@ -217,7 +250,7 @@ public class UDPClient implements Runnable {
 					message = " SEROK " + numberOfMatches + " " + myAddress + " " + myPort + message;
 					message = String.format("%04d", message.length() + 4) + message;
 
-					sendMessageWithBackofftime("ACKOK", d.getAddress(), d.getPort(), false); //
+					sendMessageWithBackofftime("ACKOK", inData.getAddress(), inData.getPort(), false); //
 					//
 
 					if (numberOfMatches > 0) {
@@ -227,32 +260,32 @@ public class UDPClient implements Runnable {
 						int hops = Integer.parseInt(a[5].trim());
 						if (hops > 0) {
 
-							if (knownList.isEmpty()) {
-								getNeighbours();
-							}
-							for (Neighbour node : knownList) {
-
-								String msg = response.trim().substring(0, response.trim().length() - 1) + (hops - 1);
-								// System.out.println(msg);
-								sendMessageWithBackofftime(msg, node.getIpAddress(), node.getPort(), true);
+							synchronized (knownNodes) {
+								knownNodes.forEach((key, value) -> {
+									String msg = response.trim().substring(0, response.trim().length() - 1)
+											+ (hops - 1);
+									// System.out.println(msg);
+									sendMessageWithBackofftime(msg, value.getIpAddress(), value.getPort(), true);
+								});
 							}
 						}
 					}
 
+				// Handle SEARCH OK messages
 				} else if (a[1].trim().equals("SEROK")) {
 
 					if (!a[2].trim().equals("0")) {
 						System.out.println("File found - > " + response);
 						// System.out.println(response);
-						
+
 						String ip = a[3].trim().substring(1);
 						String port = a[4].trim();
 						String fileName = a[4].trim();
-						
-//						If the neighbour is already in the list 
+
+						// If the neighbour is already in the list
 						if (gossipContent.containsKey(port)) {
 							gossipContent.get(fileName).add(new Neighbour(ip, port));
-							
+
 						} else {
 							ArrayList<Neighbour> list = new ArrayList<>();
 							list.add(new Neighbour(ip, port));
@@ -364,7 +397,20 @@ public class UDPClient implements Runnable {
 		}
 	}
 
+	private void mergeNodes() {
+		synchronized (knownList) {
+			synchronized (tempList) {
+
+			}
+
+		}
+	}
+
 	public void gossiping() {
+
+		if (updated) {
+
+		}
 
 	}
 
