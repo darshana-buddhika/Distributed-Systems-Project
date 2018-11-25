@@ -26,6 +26,8 @@ public class Main {
 				System.out.println("2. View neighbour nodes");
 				System.out.println("3. View set files in the node");
 				System.out.println("4. Search a file in the network");
+				System.out.println("5. View File route table");
+				System.out.println("");
 
 				int option = input.nextInt();
 
@@ -48,7 +50,13 @@ public class Main {
 					int hops = input.nextInt();
 					node.searchFiles(file, hops);
 					break;
+
+				case 5:
+					node.getFileRoute();
+					break;
+
 				}
+
 			}
 		} catch (UnknownHostException e) {
 			// TODO Auto-generated catch block
@@ -57,42 +65,6 @@ public class Main {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-
-		// String[] usernames = { "supeepa", "ranula", "hasini", "darshana", "sandaru",
-		// "chamath", "rangika", "nadeesha",
-		// "prabod", "vikum" };
-		// ArrayList<UDPClient> nodesInTheNetwork = new ArrayList<>();
-		//
-		// Scanner scanner = new Scanner(System.in);
-		// try {
-		// // Creating 10 nodes for the network
-		// for (int i = 0; i < 2; i++) {
-		//
-		// nodesInTheNetwork.add(new UDPClient(15010 + i * 2, usernames[i]));
-		//
-		// }
-		//
-		// for (UDPClient node : nodesInTheNetwork) {
-		// node.registerNetwork();
-		// }
-		//
-		// while (true) {
-		//
-		// int input = scanner.nextInt();
-		//
-		// nodesInTheNetwork.get(input).getNeighbours();
-		// nodesInTheNetwork.get(input).getFiles();
-		// nodesInTheNetwork.get(input).searchFiles("windows", 2);
-		//
-		// }
-		// } catch (UnknownHostException e) {
-		// // TODO Auto-generated catch block
-		// e.printStackTrace();
-		// } catch (SocketException e) {
-		// // TODO Auto-generated catch block
-		// e.printStackTrace();
-		// }
-		// scanner.close();
 
 	}
 

@@ -1,5 +1,6 @@
 import java.net.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashMap;
@@ -117,6 +118,8 @@ public class UDPClient implements Runnable {
 
 		connect();
 
+		gossiping();
+
 	}
 
 	// Node unregister from the network(graceful departure)
@@ -129,7 +132,7 @@ public class UDPClient implements Runnable {
 		// message);
 
 		String ACK = sendMessageWithBackofftime(message, serverIP, serverPort, false);
-		
+
 		leaveNetwork();
 
 		// System.out.print("SERVER RESPONSE TO " + username + ": " + ACK);
@@ -221,8 +224,27 @@ public class UDPClient implements Runnable {
 						}
 					}
 
-					// Handle LEAVE message
-				} else if (a[1].trim().equals("LEAVE")) {
+					// Handle the gossip information
+				} else if (a[1].trim().equals("GOS")) {
+
+					String[] nodeDetails = Arrays.copyOfRange(a, 2, a.length);
+
+					for (int i = 0; i < nodeDetails.length; i += 2) {
+						synchronized (knownNodes) {
+							if (!knownNodes.containsKey(nodeDetails[i].trim() + nodeDetails[i + 1].trim())) {
+
+								knownNodes.put(nodeDetails[i].trim() + nodeDetails[i + 1].trim(),
+										new Neighbour(nodeDetails[i].trim(), nodeDetails[i + 1].trim()));
+								
+								updated = true;
+
+							}
+						}
+					}
+
+				}
+				// Handle LEAVE message
+				else if (a[1].trim().equals("LEAVE")) {
 
 					String ip = a[2].trim();
 					String port = a[3].trim();
@@ -276,6 +298,10 @@ public class UDPClient implements Runnable {
 
 					// Handle SEARCH OK messages
 				} else if (a[1].trim().equals("SEROK")) {
+
+					String message = "ACKOK";
+					sendMessage(message, inData.getAddress(), inData.getPort(), false); // Send the acknowledgment for
+																						// SERACH OK
 
 					if (!a[2].trim().equals("0")) {
 						System.out.println("File found - > " + response);
@@ -333,7 +359,7 @@ public class UDPClient implements Runnable {
 					socket.receive(reciveDataPacket);
 
 					if (!reciveDataPacket.getData().equals(null)) {
-						System.out.println(username + " Got a reply for the message -> " + message);
+						System.out.println(username + " Got a reply -> " + new String(reciveDataPacket.getData()));
 						if (ack) {
 							sendMessage("ACKOK", reciveDataPacket.getAddress(), reciveDataPacket.getPort(), false);
 						}
@@ -362,6 +388,7 @@ public class UDPClient implements Runnable {
 
 	}
 
+	// Send message twice with random timeout
 	private String sendMessageWithBackofftime(String message, InetAddress neibhourAddress, int neghbourPort,
 			boolean ack) {
 
@@ -376,6 +403,7 @@ public class UDPClient implements Runnable {
 
 	}
 
+	// Close socket
 	public void closeSocket() {
 		clientSocket.close();
 		System.out.println("Client Socket Closed....");
@@ -389,16 +417,63 @@ public class UDPClient implements Runnable {
 
 	// Print set of nodes known to given node & merge two list to one
 	public void getNeighbours() {
-		knownNodes.forEach((key, value) -> {
-			System.out.println("Ipaddress " + value.getIpAddress().getHostAddress() + " and port " + value.getPort());
-		});
+		if (knownNodes.isEmpty()) {
+			System.out.println("There are no neghbour nodes yet...");
+		} else {
+			System.out.println("**************************** Neighbours of " + username+" *******************************");
+			knownNodes.forEach((key, value) -> {
+				System.out
+						.println("Ipaddress " + value.getIpAddress().getHostAddress() + " and port " + value.getPort());
+			});
+		}
+		
+		System.out.println("*******************************************************************");
+
 	}
 
 	public void gossiping() {
 
-		if (updated) {
+		new Thread(new Runnable() {
+			String temp = " GOS";
 
-		}
+			@Override
+			public void run() {
+
+				while (true) {
+					synchronized (this) {
+						if (updated) {
+
+							knownNodes.forEach((key, value) -> {
+
+								knownNodes.forEach((key_2, v) -> {
+									if (!key.equals(key_2)) {
+										temp = temp + " " + v.getIpAddress().getHostAddress() + " " + v.getPort();
+									}
+								});
+								String message = String.format("%04d", temp.length() + 4) + temp;
+								sendMessageWithBackofftime(message, value.getIpAddress(), value.getPort(), false);
+								temp = " GOS";
+							});
+							updated = false;
+							try {
+								Thread.sleep(2000);
+							} catch (InterruptedException e) {
+								e.printStackTrace();
+							}
+
+						} else {
+							try {
+								Thread.sleep(2000);
+							} catch (InterruptedException e) {
+
+								e.printStackTrace();
+							}
+						}
+					}
+				}
+
+			}
+		}).start();
 
 	}
 
@@ -425,21 +500,30 @@ public class UDPClient implements Runnable {
 	public void searchFiles(String fileName, int hops) {
 		String pre = " SER " + myAddress + " " + myPort + " " + fileName + " " + hops;
 		String message = String.format("%04d", pre.length() + 4) + pre; // length SER IP port file_name hops
-		
-			knownNodes.forEach((key, value) -> {
-				new Thread(() -> {
-					String ack = sendMessage(message, value.getIpAddress(), value.getPort(), false);
 
-				}).start();
-			});
+		knownNodes.forEach((key, value) -> {
+			new Thread(() -> {
+				String ack = sendMessageWithBackofftime(message, value.getIpAddress(), value.getPort(), false);
+
+			}).start();
+		});
 
 	}
 
 	// Print files
 	public void getFiles() {
+		System.out.println("**************** "+username+" FILE "+"******************");
 		for (String file : files) {
 			System.out.println(file);
 		}
+		
+		System.out.println("********************************************************");
+	}
+	
+	public void getFileRoute() {
+		gossipContent.forEach((key,value)->{
+			System.out.println("File name : "+key+" nodes : "+value.size());
+		});
 	}
 
 }
