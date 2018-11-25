@@ -18,7 +18,7 @@ public class Main {
 		String serverip = input.next();
 
 		try {
-			UDPClient node = new UDPClient(port, username);
+			UDPClient node = new UDPClient(port, username, serverip);
 
 			while (true) {
 				System.out.println("Enter the following numbers to do the corrosponding actions....");
@@ -36,11 +36,11 @@ public class Main {
 				case 2:
 					node.getNeighbours();
 					break;
-					
+
 				case 3:
 					node.getFiles();
 					break;
-				
+
 				case 4:
 					System.out.println("Enter file name you wanna download...");
 					String file = input.next();
