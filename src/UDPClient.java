@@ -10,6 +10,9 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Scanner;
 import java.util.Vector;
+
+import javax.swing.event.TreeWillExpandListener;
+
 import java.io.*;
 
 public class UDPClient implements Runnable {
@@ -76,7 +79,7 @@ public class UDPClient implements Runnable {
 			} else if (Integer.parseInt(response[2].trim()) == 9998) {
 				System.out.println(username + " IS ALREADY REGISTERED...");
 				if (knownNodes.isEmpty()) {
-					unregisterNetwork();
+					unregisterNetwork(myAddress.getHostAddress(), myPort);
 					registerNetwork();
 				}
 			} else if (Integer.parseInt(response[2].trim()) == 9999) {
@@ -119,13 +122,15 @@ public class UDPClient implements Runnable {
 		connect();
 
 		gossiping();
+		
+		liveCheck();
 
 	}
 
 	// Node unregister from the network(graceful departure)
-	public void unregisterNetwork() {
+	public void unregisterNetwork(String address, int port) {
 
-		String message = " UNREG " + myAddress + " " + myPort + " " + username;
+		String message = " UNREG " + address + " " + port + " " + username;
 		message = String.format("%04d", message.length() + 4) + message;
 
 		// System.out.println("SEND UNREGISTER MESSAGE FROM " + username + " : " +
@@ -156,8 +161,37 @@ public class UDPClient implements Runnable {
 			sendMessageWithBackofftime(message, value.getIpAddress(), value.getPort(), false);
 		});
 		
-		unregisterNetwork();
+		unregisterNetwork(myAddress.getHostAddress(),myPort);
 
+	}
+	
+	public void liveCheck() {
+		new Thread(new Runnable() {
+
+			@Override
+			public void run() {
+				// TODO Auto-generated method stub)
+				while (true) {
+					knownNodes.forEach((key,value)-> {
+						String message = "ISLIVE 0";
+						String ack = sendMessageWithBackofftime(message, value.getIpAddress(), value.getPort(), true);
+						if (ack == null) {
+							knownNodes.remove(key);
+							unregisterNetwork(value.getIpAddress().getHostAddress(),value.getPort());
+						}
+					});
+					try {
+						Thread.sleep(2000);
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+				
+			}
+		
+			
+		});
 	}
 
 	// Send JOIN message to other nodes in a new thread for each node
@@ -458,14 +492,14 @@ public class UDPClient implements Runnable {
 							});
 							updated = false;
 							try {
-								Thread.sleep(2000);
+								Thread.sleep(5000);
 							} catch (InterruptedException e) {
 								e.printStackTrace();
 							}
 
 						} else {
 							try {
-								Thread.sleep(2000);
+								Thread.sleep(5000);
 							} catch (InterruptedException e) {
 
 								e.printStackTrace();
