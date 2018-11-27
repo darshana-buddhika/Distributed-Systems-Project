@@ -122,7 +122,7 @@ public class UDPClient implements Runnable {
 		connect();
 
 		gossiping();
-		
+
 		liveCheck();
 
 	}
@@ -132,9 +132,6 @@ public class UDPClient implements Runnable {
 
 		String message = " UNREG " + address + " " + port + " " + username;
 		message = String.format("%04d", message.length() + 4) + message;
-
-		// System.out.println("SEND UNREGISTER MESSAGE FROM " + username + " : " +
-		// message);
 
 		String ACK = sendMessageWithBackofftime(message, serverIP, serverPort, false);
 
@@ -157,14 +154,16 @@ public class UDPClient implements Runnable {
 		String pre = " LEAVE " + myAddress + " " + myPort;
 		String message = String.format("%04d", pre.length() + 4) + pre;
 
-		knownNodes.forEach((key, value) -> {
-			sendMessageWithBackofftime(message, value.getIpAddress(), value.getPort(), false);
-		});
-		
-		unregisterNetwork(myAddress.getHostAddress(),myPort);
+		synchronized (knownNodes) {
+			knownNodes.forEach((key, value) -> {
+				sendMessageWithBackofftime(message, value.getIpAddress(), value.getPort(), false);
+			});
+		}
+
+		unregisterNetwork(myAddress.getHostAddress(), myPort);
 
 	}
-	
+
 	public void liveCheck() {
 		new Thread(new Runnable() {
 
@@ -172,26 +171,31 @@ public class UDPClient implements Runnable {
 			public void run() {
 				// TODO Auto-generated method stub)
 				while (true) {
-					knownNodes.forEach((key,value)-> {
-						String message = "ISLIVE 0";
-						String ack = sendMessageWithBackofftime(message, value.getIpAddress(), value.getPort(), true);
-						if (ack == null) {
-							knownNodes.remove(key);
-							unregisterNetwork(value.getIpAddress().getHostAddress(),value.getPort());
-						}
-					});
 					try {
-						Thread.sleep(2000);
+						Thread.sleep(10000);
 					} catch (InterruptedException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
+					synchronized (this) {
+						knownNodes.forEach((key, value) -> {
+							String message = "ISLIVE 0";
+							System.out.println("Sending live check messge");
+							String ack = sendMessageWithBackofftime(message, value.getIpAddress(), value.getPort(),
+									true);
+							if (ack == null) {
+								knownNodes.remove(key);
+								unregisterNetwork(value.getIpAddress().getHostAddress(), value.getPort());
+							}
+						});
+
+					}
+
 				}
-				
+
 			}
-		
-			
-		});
+
+		}).start();
 	}
 
 	// Send JOIN message to other nodes in a new thread for each node
@@ -285,7 +289,7 @@ public class UDPClient implements Runnable {
 
 					synchronized (knownNodes) {
 						if (knownNodes.containsKey(ip + port)) {
-							System.out.println(ip+port);
+							System.out.println(ip + port);
 							knownNodes.remove(ip + port);
 							updated = true;
 						}
@@ -356,6 +360,10 @@ public class UDPClient implements Runnable {
 							gossipContent.put(fileName, list);
 						}
 					}
+
+				}
+
+				else if (a[0].trim().equals("ISLIVE")) {
 
 				}
 			} catch (IOException e) {
@@ -452,15 +460,18 @@ public class UDPClient implements Runnable {
 
 	// Print set of nodes known to given node & merge two list to one
 	public void getNeighbours() {
-		if (knownNodes.isEmpty()) {
-			System.out.println("There are no neghbour nodes yet...");
-		} else {
-			System.out.println(
-					"**************************** Neighbours of " + username + " *******************************");
-			knownNodes.forEach((key, value) -> {
-				System.out
-						.println("key "+ key+ " Ipaddress " + value.getIpAddress().getHostAddress() + " and port " + value.getPort());
-			});
+
+		synchronized (knownNodes) {
+			if (knownNodes.isEmpty()) {
+				System.out.println("There are no neghbour nodes yet...");
+			} else {
+				System.out.println(
+						"**************************** Neighbours of " + username + " *******************************");
+				knownNodes.forEach((key, value) -> {
+					System.out.println("key " + key + " Ipaddress " + value.getIpAddress().getHostAddress()
+							+ " and port " + value.getPort());
+				});
+			}
 		}
 
 		System.out.println("*******************************************************************");
@@ -491,20 +502,15 @@ public class UDPClient implements Runnable {
 								temp = " GOS";
 							});
 							updated = false;
-							try {
-								Thread.sleep(5000);
-							} catch (InterruptedException e) {
-								e.printStackTrace();
-							}
 
-						} else {
-							try {
-								Thread.sleep(5000);
-							} catch (InterruptedException e) {
-
-								e.printStackTrace();
-							}
 						}
+					}
+
+					try {
+						Thread.sleep(5000);
+					} catch (InterruptedException e) {
+
+						e.printStackTrace();
 					}
 				}
 
