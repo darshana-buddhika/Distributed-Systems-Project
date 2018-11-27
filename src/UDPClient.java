@@ -177,7 +177,7 @@ public class UDPClient implements Runnable {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
-					synchronized (this) {
+					synchronized (knownNodes) {
 						knownNodes.forEach((key, value) -> {
 							String message = "ISLIVE 0";
 							System.out.println("Sending live check messge");
@@ -291,7 +291,7 @@ public class UDPClient implements Runnable {
 						if (knownNodes.containsKey(ip + port)) {
 							System.out.println(ip + port);
 							knownNodes.remove(ip + port);
-							updated = true;
+//							updated = true;
 						}
 					}
 
@@ -364,6 +364,8 @@ public class UDPClient implements Runnable {
 				}
 
 				else if (a[0].trim().equals("ISLIVE")) {
+					
+					sendMessageWithBackofftime("LIVEOK", inData.getAddress(), inData.getPort(), false);
 
 				}
 			} catch (IOException e) {
