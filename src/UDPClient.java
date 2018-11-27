@@ -246,11 +246,12 @@ public class UDPClient implements Runnable {
 				// Handle LEAVE message
 				else if (a[1].trim().equals("LEAVE")) {
 
-					String ip = a[2].trim();
+					String ip = a[2].trim().substring(1);
 					String port = a[3].trim();
 
 					synchronized (knownNodes) {
 						if (knownNodes.containsKey(ip + port)) {
+							System.out.println(ip+port);
 							knownNodes.remove(ip + port);
 							updated = true;
 						}
@@ -424,7 +425,7 @@ public class UDPClient implements Runnable {
 					"**************************** Neighbours of " + username + " *******************************");
 			knownNodes.forEach((key, value) -> {
 				System.out
-						.println("Ipaddress " + value.getIpAddress().getHostAddress() + " and port " + value.getPort());
+						.println("key "+ key+ " Ipaddress " + value.getIpAddress().getHostAddress() + " and port " + value.getPort());
 			});
 		}
 
