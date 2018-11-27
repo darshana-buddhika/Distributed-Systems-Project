@@ -235,7 +235,7 @@ public class UDPClient implements Runnable {
 
 								knownNodes.put(nodeDetails[i].trim() + nodeDetails[i + 1].trim(),
 										new Neighbour(nodeDetails[i].trim(), nodeDetails[i + 1].trim()));
-								
+
 								updated = true;
 
 							}
@@ -312,7 +312,7 @@ public class UDPClient implements Runnable {
 						String fileName = a[4].trim();
 
 						// If the neighbour is already in the list
-						if (gossipContent.containsKey(port)) {
+						if (gossipContent.containsKey(ip + port)) {
 							gossipContent.get(fileName).add(new Neighbour(ip, port));
 
 						} else {
@@ -420,13 +420,14 @@ public class UDPClient implements Runnable {
 		if (knownNodes.isEmpty()) {
 			System.out.println("There are no neghbour nodes yet...");
 		} else {
-			System.out.println("**************************** Neighbours of " + username+" *******************************");
+			System.out.println(
+					"**************************** Neighbours of " + username + " *******************************");
 			knownNodes.forEach((key, value) -> {
 				System.out
 						.println("Ipaddress " + value.getIpAddress().getHostAddress() + " and port " + value.getPort());
 			});
 		}
-		
+
 		System.out.println("*******************************************************************");
 
 	}
@@ -512,18 +513,22 @@ public class UDPClient implements Runnable {
 
 	// Print files
 	public void getFiles() {
-		System.out.println("**************** "+username+" FILE "+"******************");
+		System.out.println("**************** " + username + " FILE " + "******************");
 		for (String file : files) {
 			System.out.println(file);
 		}
-		
-		System.out.println("********************************************************");
+
+		System.out.println("***********************************************************");
 	}
-	
+
 	public void getFileRoute() {
-		gossipContent.forEach((key,value)->{
-			System.out.println("File name : "+key+" nodes : "+value.size());
+		gossipContent.forEach((key, value) -> {
+			System.out.println("File name : " + key + " nodes : " + value.size());
 		});
+	}
+
+	public void tcpServer() {
+
 	}
 
 }
