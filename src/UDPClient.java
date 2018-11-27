@@ -133,9 +133,6 @@ public class UDPClient implements Runnable {
 		String message = " UNREG " + address + " " + port + " " + username;
 		message = String.format("%04d", message.length() + 4) + message;
 
-		// System.out.println("SEND UNREGISTER MESSAGE FROM " + username + " : " +
-		// message);
-
 		String ACK = sendMessageWithBackofftime(message, serverIP, serverPort, false);
 
 		// System.out.print("SERVER RESPONSE TO " + username + ": " + ACK);
@@ -157,9 +154,11 @@ public class UDPClient implements Runnable {
 		String pre = " LEAVE " + myAddress + " " + myPort;
 		String message = String.format("%04d", pre.length() + 4) + pre;
 
-		knownNodes.forEach((key, value) -> {
-			sendMessageWithBackofftime(message, value.getIpAddress(), value.getPort(), false);
-		});
+		synchronized (knownNodes) {
+			knownNodes.forEach((key, value) -> {
+				sendMessageWithBackofftime(message, value.getIpAddress(), value.getPort(), false);
+			});
+		}
 
 		unregisterNetwork(myAddress.getHostAddress(), myPort);
 
@@ -172,8 +171,13 @@ public class UDPClient implements Runnable {
 			public void run() {
 				// TODO Auto-generated method stub)
 				while (true) {
-
-					synchronized (knownNodes) {
+					try {
+						Thread.sleep(10000);
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					synchronized (this) {
 						knownNodes.forEach((key, value) -> {
 							String message = "ISLIVE 0";
 							System.out.println("Sending live check messge");
@@ -185,13 +189,6 @@ public class UDPClient implements Runnable {
 							}
 						});
 
-					}
-
-					try {
-						Thread.sleep(10000);
-					} catch (InterruptedException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
 					}
 
 				}
@@ -365,6 +362,10 @@ public class UDPClient implements Runnable {
 					}
 
 				}
+
+				else if (a[0].trim().equals("ISLIVE")) {
+
+				}
 			} catch (IOException e) {
 
 				e.printStackTrace();
@@ -459,15 +460,18 @@ public class UDPClient implements Runnable {
 
 	// Print set of nodes known to given node & merge two list to one
 	public void getNeighbours() {
-		if (knownNodes.isEmpty()) {
-			System.out.println("There are no neghbour nodes yet...");
-		} else {
-			System.out.println(
-					"**************************** Neighbours of " + username + " *******************************");
-			knownNodes.forEach((key, value) -> {
-				System.out.println("key " + key + " Ipaddress " + value.getIpAddress().getHostAddress() + " and port "
-						+ value.getPort());
-			});
+
+		synchronized (knownNodes) {
+			if (knownNodes.isEmpty()) {
+				System.out.println("There are no neghbour nodes yet...");
+			} else {
+				System.out.println(
+						"**************************** Neighbours of " + username + " *******************************");
+				knownNodes.forEach((key, value) -> {
+					System.out.println("key " + key + " Ipaddress " + value.getIpAddress().getHostAddress()
+							+ " and port " + value.getPort());
+				});
+			}
 		}
 
 		System.out.println("*******************************************************************");
