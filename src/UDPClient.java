@@ -133,8 +133,6 @@ public class UDPClient implements Runnable {
 
 		String ACK = sendMessageWithBackofftime(message, serverIP, serverPort, false);
 
-		leaveNetwork();
-
 		// System.out.print("SERVER RESPONSE TO " + username + ": " + ACK);
 
 	}
@@ -157,6 +155,8 @@ public class UDPClient implements Runnable {
 		knownNodes.forEach((key, value) -> {
 			sendMessageWithBackofftime(message, value.getIpAddress(), value.getPort(), false);
 		});
+		
+		unregisterNetwork();
 
 	}
 
