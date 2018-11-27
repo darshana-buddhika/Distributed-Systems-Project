@@ -21,12 +21,14 @@ public class Main {
 			UDPClient node = new UDPClient(port, username, serverip);
 
 			while (true) {
+				System.out.println("");
 				System.out.println("Enter the following numbers to do the corrosponding actions....");
 				System.out.println("1. To register network");
 				System.out.println("2. View neighbour nodes");
 				System.out.println("3. View set files in the node");
 				System.out.println("4. Search a file in the network");
 				System.out.println("5. View File route table");
+				System.out.println("6. Leave network");
 				System.out.println("");
 
 				int option = input.nextInt();
@@ -53,6 +55,10 @@ public class Main {
 
 				case 5:
 					node.getFileRoute();
+					break;
+				
+				case 6:
+					node.leaveNetwork();
 					break;
 
 				}
