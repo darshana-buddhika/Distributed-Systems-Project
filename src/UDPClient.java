@@ -157,8 +157,6 @@ public class UDPClient implements Runnable {
 		knownNodes.forEach((key, value) -> {
 			sendMessageWithBackofftime(message, value.getIpAddress(), value.getPort(), false);
 		});
-		
-		unregisterNetwork();
 
 	}
 
@@ -314,7 +312,7 @@ public class UDPClient implements Runnable {
 						String fileName = a[4].trim();
 
 						// If the neighbour is already in the list
-						if (gossipContent.containsKey(ip+port)) {
+						if (gossipContent.containsKey(ip + port)) {
 							gossipContent.get(fileName).add(new Neighbour(ip, port));
 
 						} else {
@@ -528,9 +526,9 @@ public class UDPClient implements Runnable {
 			System.out.println("File name : " + key + " nodes : " + value.size());
 		});
 	}
-	
+
 	public void tcpServer() {
-		
+
 	}
 
 }
