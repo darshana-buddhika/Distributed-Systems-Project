@@ -29,6 +29,8 @@ public class Main {
 				System.out.println("4. Search a file in the network");
 				System.out.println("5. View File route table");
 				System.out.println("6. Leave network");
+				System.out.println("7. Send File");
+				System.out.println("8. Recieve File");
 				System.out.println("");
 
 				int option = input.nextInt();
@@ -61,6 +63,12 @@ public class Main {
 					node.leaveNetwork();
 					break;
 
+//				case 7:
+//					node.readFile("10.10.20.207");
+//					break;
+//				case 8:
+//					node.sendFile(node.getMyIp(),node.getMyPort());
+//					break;
 				}
 
 			}

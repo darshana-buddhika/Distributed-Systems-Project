@@ -1,4 +1,5 @@
 import java.net.*;
+import java.rmi.Naming;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -14,6 +15,7 @@ import java.util.Vector;
 import javax.swing.event.TreeWillExpandListener;
 
 import java.io.*;
+
 
 public class UDPClient implements Runnable {
 
@@ -43,13 +45,13 @@ public class UDPClient implements Runnable {
 		this.username = username;
 		this.myAddress = InetAddress.getByName(getMyIp());
 		this.serverIP = InetAddress.getByName(serverIp);
-
-		fileInitializer(); // Initialize files for the nodes
+//        this.fileServer(myAddress.getHostAddress(), 1199);
+//		fileInitializer(); // Initialize files for the nodes
 
 	}
 
 	// Get local mechine IP adderss
-	private String getMyIp() {
+	public String getMyIp() {
 		try (final DatagramSocket socket = new DatagramSocket()) {
 			socket.connect(InetAddress.getByName("8.8.8.8"), 10002);
 			return socket.getLocalAddress().getHostAddress();
@@ -57,6 +59,9 @@ public class UDPClient implements Runnable {
 			e.printStackTrace();
 		}
 		return null;
+	}
+	public int getMyPort(){
+		return myPort;
 	}
 
 	// Register with the network for the first time
@@ -180,7 +185,7 @@ public class UDPClient implements Runnable {
 					synchronized (knownNodes) {
 						knownNodes.forEach((key, value) -> {
 							String message = "ISLIVE 0";
-							System.out.println("Sending live check messge");
+//							System.out.println("Sending live check messge");
 							String ack = sendMessageWithBackofftime(message, value.getIpAddress(), value.getPort(),
 									true);
 							if (ack == null) {
@@ -345,9 +350,11 @@ public class UDPClient implements Runnable {
 					if (!a[2].trim().equals("0")) {
 						System.out.println("File found - > " + response);
 						// System.out.println(response);
-
+                 
 						String ip = a[3].trim().substring(1);
 						String port = a[4].trim();
+//						this.ip=
+						this.readFile(ip);
 						String fileName = a[4].trim();
 
 						// If the neighbour is already in the list
@@ -404,7 +411,7 @@ public class UDPClient implements Runnable {
 					socket.receive(reciveDataPacket);
 
 					if (!reciveDataPacket.getData().equals(null)) {
-						System.out.println(username + " Got a reply -> " + new String(reciveDataPacket.getData()));
+//						System.out.println(username + " Got a reply -> " + new String(reciveDataPacket.getData()));
 						if (ack) {
 							sendMessage("ACKOK", reciveDataPacket.getAddress(), reciveDataPacket.getPort(), false);
 						}
@@ -572,6 +579,33 @@ public class UDPClient implements Runnable {
 
 	public void tcpServer() {
 
+	}
+	
+	private void readFile(String ServeriP){
+		try{
+			FileClient c=new FileClient("imed");			
+			FileServerInt server=(FileServerInt)Naming.lookup("rmi://"+ServeriP+"/abc");
+			server.login(c,"C:/Users/sudeepa/Desktop/https.txt");
+			System.out.println("Listening.....");			
+			Scanner s=new Scanner(System.in);			
+			while(true){
+				String line=s.nextLine();
+			}
+		}catch(Exception e){
+			e.printStackTrace();
+		}
+	}
+	
+	public void fileServer(String myIP, int PORT){
+		try{		
+			java.rmi.registry.LocateRegistry.createRegistry(PORT);	
+			FileServer fs=new FileServer();
+			fs.setFile("itcrowd.avi");			
+			Naming.rebind("rmi://10.10.14.179/abc", fs);
+			System.out.println("File Server is Ready");				
+		}catch(Exception e){
+			e.printStackTrace();
+		}
 	}
 
 }
