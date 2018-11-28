@@ -166,9 +166,10 @@ public class UDPClient implements Runnable {
 
 	public void liveCheck() {
 		new Thread(new Runnable() {
-
+			
 			@Override
 			public void run() {
+				ArrayList<String> keysToRemove = new ArrayList<>();
 				// TODO Auto-generated method stub)
 				while (true) {
 					try {
@@ -177,19 +178,25 @@ public class UDPClient implements Runnable {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
-					synchronized (knownNodes) {
+//					synchronized (knownNodes) {
 						knownNodes.forEach((key, value) -> {
 							String message = "ISLIVE 0";
 							// System.out.println("Sending live check messge");
 							String ack = sendMessageWithBackofftime(message, value.getIpAddress(), value.getPort(),
 									true);
 							if (ack == null) {
-								knownNodes.remove(key);
-								unregisterNetwork(value.getIpAddress().getHostAddress(), value.getPort());
+								
+								keysToRemove.add(key);
+//								knownNodes.remove(key);
+//								unregisterNetwork(value.getIpAddress().getHostAddress(), value.getPort());
 							}
 						});
+						
+						for (String key : keysToRemove) {
+							knownNodes.remove(key);
+						}
 
-					}
+//					}
 
 				}
 
