@@ -5,6 +5,9 @@ import java.util.Scanner;
 
 public class Main {
 
+	public static int UDP_PORT_OFFSET = 10;
+	public static String UPLOAD_FILE_PATH = "C:/Users/darshana/Desktop";
+	public static String DOWNALOAD_FILE_PATH = "C:/Users/darshana/Desktop/download";
 	public static void main(String[] args) {
 
 		Scanner input = new Scanner(System.in);

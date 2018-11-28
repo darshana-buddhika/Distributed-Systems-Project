@@ -38,6 +38,9 @@ public class UDPClient implements Runnable {
 	private ArrayList<String> files = new ArrayList<>(); // set of files have on the node
 	private Hashtable<String, Neighbour> knownNodes = new Hashtable<String, Neighbour>(); // contain the list of movies
 
+	ServerController server = new ServerController();
+	FileClient client = new FileClient(Main.DOWNALOAD_FILE_PATH);
+
 	public UDPClient(int port, String username, String serverIp) throws UnknownHostException, SocketException {
 		this.myPort = port;
 		this.username = username;
@@ -45,6 +48,9 @@ public class UDPClient implements Runnable {
 		this.serverIP = InetAddress.getByName(serverIp);
 
 		fileInitializer(); // Initialize files for the nodes
+
+		server.createServer(Main.UPLOAD_FILE_PATH, myPort, myAddress); // Create TCP server for file transfer
+																				// server
 
 	}
 
@@ -166,7 +172,7 @@ public class UDPClient implements Runnable {
 
 	public void liveCheck() {
 		new Thread(new Runnable() {
-			
+
 			@Override
 			public void run() {
 				ArrayList<String> keysToRemove = new ArrayList<>();
@@ -178,25 +184,24 @@ public class UDPClient implements Runnable {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
-//					synchronized (knownNodes) {
-						knownNodes.forEach((key, value) -> {
-							String message = "ISLIVE 0";
-							// System.out.println("Sending live check messge");
-							String ack = sendMessageWithBackofftime(message, value.getIpAddress(), value.getPort(),
-									true);
-							if (ack == null) {
-								
-								keysToRemove.add(key);
-//								knownNodes.remove(key);
-//								unregisterNetwork(value.getIpAddress().getHostAddress(), value.getPort());
-							}
-						});
-						
-						for (String key : keysToRemove) {
-							knownNodes.remove(key);
-						}
+					// synchronized (knownNodes) {
+					knownNodes.forEach((key, value) -> {
+						String message = "ISLIVE 0";
+						// System.out.println("Sending live check messge");
+						String ack = sendMessageWithBackofftime(message, value.getIpAddress(), value.getPort(), true);
+						if (ack == null) {
 
-//					}
+							keysToRemove.add(key);
+							// knownNodes.remove(key);
+							// unregisterNetwork(value.getIpAddress().getHostAddress(), value.getPort());
+						}
+					});
+
+					for (String key : keysToRemove) {
+						knownNodes.remove(key);
+					}
+
+					// }
 
 				}
 
@@ -354,16 +359,18 @@ public class UDPClient implements Runnable {
 						// System.out.println(response);
 
 						String ip = a[3].trim().substring(1);
-						String port = a[4].trim();
+						int port = Integer.parseInt(a[4].trim());
 						String fileName = a[5].trim();
+
+						client.downloadFile(fileName, ip, (int) port); // Send download command
 
 						// If the neighbour is already in the list
 						if (gossipContent.containsKey(ip + port)) {
-							gossipContent.get(fileName).add(new Neighbour(ip, port));
+							gossipContent.get(fileName).add(new Neighbour(ip, port + ""));
 
 						} else {
 							ArrayList<Neighbour> list = new ArrayList<>();
-							list.add(new Neighbour(ip, port));
+							list.add(new Neighbour(ip, port + ""));
 							gossipContent.put(fileName, list);
 						}
 					}
