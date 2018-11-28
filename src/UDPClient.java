@@ -172,7 +172,7 @@ public class UDPClient implements Runnable {
 				// TODO Auto-generated method stub)
 				while (true) {
 					try {
-						Thread.sleep(10000);
+						Thread.sleep(20000);
 					} catch (InterruptedException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
@@ -180,7 +180,7 @@ public class UDPClient implements Runnable {
 					synchronized (knownNodes) {
 						knownNodes.forEach((key, value) -> {
 							String message = "ISLIVE 0";
-							System.out.println("Sending live check messge");
+							// System.out.println("Sending live check messge");
 							String ack = sendMessageWithBackofftime(message, value.getIpAddress(), value.getPort(),
 									true);
 							if (ack == null) {
@@ -291,7 +291,7 @@ public class UDPClient implements Runnable {
 						if (knownNodes.containsKey(ip + port)) {
 							System.out.println(ip + port);
 							knownNodes.remove(ip + port);
-//							updated = true;
+							// updated = true;
 						}
 					}
 
@@ -348,7 +348,7 @@ public class UDPClient implements Runnable {
 
 						String ip = a[3].trim().substring(1);
 						String port = a[4].trim();
-						String fileName = a[4].trim();
+						String fileName = a[5].trim();
 
 						// If the neighbour is already in the list
 						if (gossipContent.containsKey(ip + port)) {
@@ -364,7 +364,7 @@ public class UDPClient implements Runnable {
 				}
 
 				else if (a[0].trim().equals("ISLIVE")) {
-					
+					// Send reply to live message
 					sendMessageWithBackofftime("LIVEOK", inData.getAddress(), inData.getPort(), false);
 
 				}
@@ -395,7 +395,7 @@ public class UDPClient implements Runnable {
 			// Generate a random number between 1000 and 3000 to set the socket timeout
 			Calendar calendar = Calendar.getInstance();
 			long mills = calendar.getTimeInMillis();
-			int randomTimeout = Math.toIntExact((mills % 2000) + 1000);
+			int randomTimeout = Math.toIntExact((mills % 1000) + 2000);
 
 			socket.setSoTimeout(randomTimeout);
 
@@ -404,7 +404,8 @@ public class UDPClient implements Runnable {
 					socket.receive(reciveDataPacket);
 
 					if (!reciveDataPacket.getData().equals(null)) {
-						System.out.println(username + " Got a reply -> " + new String(reciveDataPacket.getData()));
+						// System.out.println(username + " Got a reply -> " + new
+						// String(reciveDataPacket.getData()));
 						if (ack) {
 							sendMessage("ACKOK", reciveDataPacket.getAddress(), reciveDataPacket.getPort(), false);
 						}
@@ -509,7 +510,7 @@ public class UDPClient implements Runnable {
 					}
 
 					try {
-						Thread.sleep(5000);
+						Thread.sleep(10000);
 					} catch (InterruptedException e) {
 
 						e.printStackTrace();
@@ -544,13 +545,14 @@ public class UDPClient implements Runnable {
 	public void searchFiles(String fileName, int hops) {
 		String pre = " SER " + myAddress + " " + myPort + " " + fileName + " " + hops;
 		String message = String.format("%04d", pre.length() + 4) + pre; // length SER IP port file_name hops
+		synchronized (knownNodes) {
+			knownNodes.forEach((key, value) -> {
+				new Thread(() -> {
+					String ack = sendMessageWithBackofftime(message, value.getIpAddress(), value.getPort(), false);
 
-		knownNodes.forEach((key, value) -> {
-			new Thread(() -> {
-				String ack = sendMessageWithBackofftime(message, value.getIpAddress(), value.getPort(), false);
-
-			}).start();
-		});
+				}).start();
+			});
+		}
 
 	}
 
