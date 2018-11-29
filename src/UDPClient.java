@@ -29,15 +29,14 @@ public class UDPClient implements Runnable {
 	private InetAddress myAddress;
 	private DatagramSocket clientSocket;
 
-	// private List<Neighbour> neighbours = Collections.synchronizedList(new
-	// ArrayList<Neighbour>()); // contain neighbour
-	// private Vector<Neighbour> knownList = new Vector<>();
 	private Hashtable<String, ArrayList<Neighbour>> gossipContent = new Hashtable<String, ArrayList<Neighbour>>(); // about
 	// other
 	// nodes
-	private ArrayList<String> files = new ArrayList<>(); // set of files have on the node
-	private Hashtable<String, Neighbour> knownNodes = new Hashtable<String, Neighbour>(); // contain the list of movies
+	private ArrayList<String> files = new ArrayList<>(); // Set of files have on the node
+	private Hashtable<String, Neighbour> knownNodes = new Hashtable<String, Neighbour>(); // List of known nodes in the
+																							// network
 
+	// Create the RMI file server and Client
 	ServerController server = new ServerController();
 	FileClient client = new FileClient(Main.DOWNALOAD_FILE_PATH);
 
@@ -47,14 +46,13 @@ public class UDPClient implements Runnable {
 		this.myAddress = InetAddress.getByName(getMyIp());
 		this.serverIP = InetAddress.getByName(serverIp);
 
-		fileInitializer(); // Initialize files for the nodes
+		fileInitializer(); // Initialize random 3-5 files for the node
 
-		server.createServer(Main.UPLOAD_FILE_PATH, myPort, myAddress); // Create TCP server for file transfer
-																				// server
-
+		// Start RMI File server
+		server.createServer(Main.UPLOAD_FILE_PATH, myPort, myAddress);
 	}
 
-	// Get local mechine IP adderss
+	// Get the local network interface IP
 	private String getMyIp() {
 		try (final DatagramSocket socket = new DatagramSocket()) {
 			socket.connect(InetAddress.getByName("8.8.8.8"), 10002);
@@ -76,7 +74,6 @@ public class UDPClient implements Runnable {
 		String ACK = sendMessageWithBackofftime(message, serverIP, serverPort, false);
 
 		if (ACK != null) {
-			// System.out.println("SERVER RESPONSE TO " + username + " : " + ACK);
 
 			String[] response = ACK.split(" ");
 
@@ -121,15 +118,15 @@ public class UDPClient implements Runnable {
 				}
 			}).start();
 
+			connect(); // Send JOIN messages to the nodes got from BS server
+
+			gossiping(); // Start gossiping about my known nodes
+
+			liveCheck(); // Check all the known nodes are live
+
 		} else {
 			System.out.println(username + " FAILD TO CONNECT TO SERVER");
 		}
-
-		connect();
-
-		gossiping();
-
-		liveCheck();
 
 	}
 
@@ -139,9 +136,7 @@ public class UDPClient implements Runnable {
 		String message = " UNREG " + address + " " + port + " " + username;
 		message = String.format("%04d", message.length() + 4) + message;
 
-		String ACK = sendMessageWithBackofftime(message, serverIP, serverPort, false);
-
-		// System.out.print("SERVER RESPONSE TO " + username + ": " + ACK);
+		sendMessageWithBackofftime(message, serverIP, serverPort, false);
 
 	}
 
@@ -149,13 +144,12 @@ public class UDPClient implements Runnable {
 	public void joinNeghbour(InetAddress neghbourAddress, int neghbourPort) {
 		String message = " JOIN " + myAddress + " " + myPort;
 		message = String.format("%04d", message.length() + 4) + message;
-		// System.out.println("SEND JOIN MESSAGE FROM " + username + " : " + message);
 
-		String ACK = sendMessageWithBackofftime(message, neghbourAddress, neghbourPort, true);
+		sendMessageWithBackofftime(message, neghbourAddress, neghbourPort, true);
 
-		// System.out.println(username + " GOT A ACKNOLEDGEMENT FROM : " + ACK);
 	}
 
+	// Graceful departure
 	public void leaveNetwork() {
 		String pre = " LEAVE " + myAddress + " " + myPort;
 		String message = String.format("%04d", pre.length() + 4) + pre;
@@ -170,6 +164,7 @@ public class UDPClient implements Runnable {
 
 	}
 
+	// Send live message
 	public void liveCheck() {
 		new Thread(new Runnable() {
 
@@ -184,24 +179,28 @@ public class UDPClient implements Runnable {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
-					// synchronized (knownNodes) {
+
+					// Send message to the each known Node
 					knownNodes.forEach((key, value) -> {
 						String message = "ISLIVE 0";
-						// System.out.println("Sending live check messge");
+
 						String ack = sendMessageWithBackofftime(message, value.getIpAddress(), value.getPort(), true);
 						if (ack == null) {
-
+							// Remember nodes that does not reply
 							keysToRemove.add(key);
-							// knownNodes.remove(key);
-							// unregisterNetwork(value.getIpAddress().getHostAddress(), value.getPort());
+
 						}
 					});
 
+					// Remove the nodes that does not reply from the known nodes
 					for (String key : keysToRemove) {
+						Neighbour temp = knownNodes.get(key);
+						unregisterNetwork(temp.getIpAddress().getHostAddress(), temp.getPort()); // Unregister them from
+																									// the network
 						knownNodes.remove(key);
 					}
 
-					// }
+					keysToRemove.clear();
 
 				}
 
@@ -216,9 +215,6 @@ public class UDPClient implements Runnable {
 
 			@Override
 			public void run() {
-
-				// System.out.println(username + " SENDING JOIN MESSAGE TO " + neighbours.size()
-				// + " NEIGHBOURS");
 
 				synchronized (knownNodes) {
 					knownNodes.forEach((key, value) -> {
@@ -245,7 +241,6 @@ public class UDPClient implements Runnable {
 			}
 		}
 		while (true) {
-			// System.out.println(username + " IS LISTING FOR INCOMMING PACKATES");
 
 			byte[] data = new byte[65536];
 			DatagramPacket inData = new DatagramPacket(data, data.length);
@@ -274,8 +269,9 @@ public class UDPClient implements Runnable {
 						}
 					}
 
-					// Handle the gossip information
-				} else if (a[1].trim().equals("GOS")) {
+				}
+				// Handle the gossip information
+				else if (a[1].trim().equals("GOS")) {
 
 					String[] nodeDetails = Arrays.copyOfRange(a, 2, a.length);
 
@@ -309,8 +305,9 @@ public class UDPClient implements Runnable {
 
 					sendMessage("LEAVEOK", inData.getAddress(), inData.getPort(), false);
 
-					// Handle SEARCH message
-				} else if (a[1].trim().equals("SER")) {
+				}
+				// Handle SEARCH message
+				else if (a[1].trim().equals("SER")) {
 					String fileName = a[4].trim();
 
 					int numberOfMatches = 0;
@@ -340,15 +337,15 @@ public class UDPClient implements Runnable {
 								knownNodes.forEach((key, value) -> {
 									String msg = response.trim().substring(0, response.trim().length() - 1)
 											+ (hops - 1);
-									// System.out.println(msg);
 									sendMessageWithBackofftime(msg, value.getIpAddress(), value.getPort(), true);
 								});
 							}
 						}
 					}
 
-					// Handle SEARCH OK messages
-				} else if (a[1].trim().equals("SEROK")) {
+				}
+				// Handle SEARCH OK messages
+				else if (a[1].trim().equals("SEROK")) {
 
 					String message = "ACKOK";
 					sendMessage(message, inData.getAddress(), inData.getPort(), false); // Send the acknowledgment for
@@ -356,13 +353,21 @@ public class UDPClient implements Runnable {
 
 					if (!a[2].trim().equals("0")) {
 						System.out.println("File found - > " + response);
-						// System.out.println(response);
 
-						String ip = a[3].trim().substring(1);
-						int port = Integer.parseInt(a[4].trim());
-						String fileName = a[5].trim();
+						String ip = a[3].trim().substring(1); // File node IP
+						int port = Integer.parseInt(a[4].trim());// File node port
+						String[] fileNameArray = Arrays.copyOfRange(a, 5, a.length); // File name
 
-						client.downloadFile(fileName, ip, (int) port); // Send download command
+						// Concatenate file name if it has more than one name
+						StringBuilder temp = new StringBuilder();
+						for (String name : fileNameArray) {
+
+							temp.append(name + " ");
+						}
+
+						String fileName = temp.toString().trim();
+
+						client.downloadFile("https.txt", ip, (int) port); // Send download command
 
 						// If the neighbour is already in the list
 						if (gossipContent.containsKey(ip + port)) {
@@ -418,8 +423,7 @@ public class UDPClient implements Runnable {
 					socket.receive(reciveDataPacket);
 
 					if (!reciveDataPacket.getData().equals(null)) {
-						// System.out.println(username + " Got a reply -> " + new
-						// String(reciveDataPacket.getData()));
+
 						if (ack) {
 							sendMessage("ACKOK", reciveDataPacket.getAddress(), reciveDataPacket.getPort(), false);
 						}
@@ -430,7 +434,7 @@ public class UDPClient implements Runnable {
 
 				} catch (SocketTimeoutException e) {
 
-					System.out.println(username + " Timeout reached for message -> " + message);
+					// System.out.println(username + " Timeout reached for message -> " + message);
 					socket.close();
 					break;
 
@@ -562,7 +566,8 @@ public class UDPClient implements Runnable {
 		synchronized (knownNodes) {
 			knownNodes.forEach((key, value) -> {
 				new Thread(() -> {
-					String ack = sendMessageWithBackofftime(message, value.getIpAddress(), value.getPort(), false);
+					
+					sendMessageWithBackofftime(message, value.getIpAddress(), value.getPort(), true);
 
 				}).start();
 			});
@@ -572,22 +577,21 @@ public class UDPClient implements Runnable {
 
 	// Print files
 	public void getFiles() {
-		System.out.println("**************** " + username + " FILE " + "******************");
+		System.out.println("**************** " + username + " FILES " + "******************");
 		for (String file : files) {
 			System.out.println(file);
 		}
 
-		System.out.println("***********************************************************");
+		System.out.println("****************************************************************");
 	}
 
 	public void getFileRoute() {
+		System.out.println("**************** " + username + " FILE ROUTING TABLE " + "******************");
 		gossipContent.forEach((key, value) -> {
 			System.out.println("File name : " + key + " nodes : " + value.size());
 		});
-	}
-
-	public void tcpServer() {
-
+		
+		System.out.println("*****************************************************************************");
 	}
 
 }
