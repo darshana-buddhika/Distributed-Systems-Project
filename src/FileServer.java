@@ -6,6 +6,7 @@ import java.io.FileInputStream;
 
 public class FileServer implements FileInterface {
 	 String uploadFilePath;
+	 SHAHash shaHash = new SHAHash();
 	    public FileServer(String uFilePath) {
 	       uploadFilePath = uFilePath;
 	    }
@@ -26,5 +27,12 @@ public class FileServer implements FileInterface {
 	            e.printStackTrace();
 	            return(null);
 	        }
+	    }
+	    @Override
+	    public String getHash(String fileName) {
+	    	
+	    	String hash = shaHash.hashString(fileName);
+			return hash;
+	    	
 	    }
 }

@@ -31,10 +31,15 @@ public class FileClient {
 				output.write(fileData, 0, fileData.length);
 				output.flush();
 			}
+			
+			String hash = stub.getHash(fileName);
+			System.out.println(hash);
 //			String response = (stub.downloadFile(fileName));
 //			System.out.println("response: " + response);
 		} catch (IOException | NotBoundException e) {
 			System.err.println("FileServer exception: " + e.getMessage());
 		}
 	}
+	
+
 }
