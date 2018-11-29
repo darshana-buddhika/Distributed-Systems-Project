@@ -122,7 +122,7 @@ public class UDPClient implements Runnable {
 
 			gossiping(); // Start gossiping about my known nodes
 
-			liveCheck(); // Check all the known nodes are live
+//			liveCheck(); // Check all the known nodes are live
 
 		} else {
 			System.out.println(username + " FAILD TO CONNECT TO SERVER");
