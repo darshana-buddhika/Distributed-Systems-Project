@@ -247,7 +247,7 @@ public class UDPClient implements Runnable {
 			try {
 				clientSocket.receive(inData);
 				String response = new String(inData.getData());
-				System.out.println(username + " recive message -> : " + response);
+//				System.out.println(username + " recive message -> : " + response);
 
 				String[] a = response.split(" ");
 
@@ -367,17 +367,20 @@ public class UDPClient implements Runnable {
 
 						String fileName = temp.toString().trim();
 
-						 client.downloadFile(fileName, ip, (int) port); // Send download command
+						boolean download = client.downloadFile(fileName, ip, (int) port); // Send download command
 
 						// If the neighbour is already in the list
-						if (gossipContent.containsKey(ip + port)) {
-							gossipContent.get(fileName).add(new Neighbour(ip, port + ""));
+						if (download) {
+							if (gossipContent.containsKey(ip + port)) {
+								gossipContent.get(fileName).add(new Neighbour(ip, port + ""));
 
-						} else {
-							ArrayList<Neighbour> list = new ArrayList<>();
-							list.add(new Neighbour(ip, port + ""));
-							gossipContent.put(fileName, list);
+							} else {
+								ArrayList<Neighbour> list = new ArrayList<>();
+								list.add(new Neighbour(ip, port + ""));
+								gossipContent.put(fileName, list);
+							}
 						}
+						
 					}
 
 				}
@@ -487,9 +490,9 @@ public class UDPClient implements Runnable {
 				System.out.println("There are no neghbour nodes yet...");
 			} else {
 				System.out.println(
-						"**************************** Neighbours of " + username + " *******************************");
+						"**************************** Routing Table of " + username + " *******************************");
 				knownNodes.forEach((key, value) -> {
-					System.out.println("key " + key + " Ipaddress " + value.getIpAddress().getHostAddress()
+					System.out.println(" Ipaddress " + value.getIpAddress().getHostAddress()
 							+ " and port " + value.getPort());
 				});
 			}
