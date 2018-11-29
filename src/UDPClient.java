@@ -174,7 +174,7 @@ public class UDPClient implements Runnable {
 				// TODO Auto-generated method stub)
 				while (true) {
 					try {
-						Thread.sleep(20000);
+						Thread.sleep(60000);
 					} catch (InterruptedException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
@@ -461,7 +461,7 @@ public class UDPClient implements Runnable {
 
 		String reply = sendMessage(message, neibhourAddress, neghbourPort, ack);
 		if (reply == null) {
-			System.out.println("Faild to connect first time attempting for the second time message -> " + message);
+			System.out.println("Message sending faild in th first attempt -> " + message);
 			String secondReply = sendMessage(message, neibhourAddress, neghbourPort, ack);
 
 			return secondReply;
@@ -531,7 +531,7 @@ public class UDPClient implements Runnable {
 					}
 
 					try {
-						Thread.sleep(10000);
+						Thread.sleep(15000);
 					} catch (InterruptedException e) {
 
 						e.printStackTrace();
