@@ -367,7 +367,7 @@ public class UDPClient implements Runnable {
 
 						String fileName = temp.toString().trim();
 
-						client.downloadFile("https.txt", ip, (int) port); // Send download command
+						client.downloadFile(fileName, ip, (int) port); // Send download command
 
 						// If the neighbour is already in the list
 						if (gossipContent.containsKey(ip + port)) {

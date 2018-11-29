@@ -51,9 +51,9 @@ public class Main {
 				case 4:
 					System.out.println("Enter the file name you want to download...");
 					String file = input.next();
-					System.out.println("Enter the number of hops you want to go...");
-					int hops = input.nextInt();
-					node.searchFiles(file, hops);
+//					System.out.println("Enter the number of hops you want to go...");
+//					int hops = input.nextInt();
+					node.searchFiles(file, 0);
 					break;
 
 				case 5:
