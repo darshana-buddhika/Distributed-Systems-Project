@@ -369,7 +369,15 @@ public class UDPClient implements Runnable {
 						
 						if (!DOWNLOAD_FALG) {
 							DOWNLOAD_FALG = true;
-							boolean download = client.downloadFile(fileName, ip, (int) port); // Send
+							new Thread(new Runnable() {
+								
+								@Override
+								public void run() {
+									// TODO Auto-generated method stub
+									boolean download = client.downloadFile(fileName, ip, (int) port); // Send
+
+								}
+							}).start();
 
 						}
 						// download command
@@ -465,7 +473,7 @@ public class UDPClient implements Runnable {
 
 		String reply = sendMessage(message, neibhourAddress, neghbourPort, ack);
 		if (reply == null) {
-			System.out.println("Message sending faild in th first attempt -> " + message);
+//			System.out.println("Message sending faild in th first attempt -> " + message);
 			String secondReply = sendMessage(message, neibhourAddress, neghbourPort, ack);
 
 			return secondReply;
