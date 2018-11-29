@@ -3,6 +3,7 @@
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.util.Random;
 
 public class FileServer implements FileInterface {
 	 private String uploadFilePath;
@@ -17,8 +18,9 @@ public class FileServer implements FileInterface {
 	    @Override
 	    public String downloadFile(String fileName){
 	        try {
-	        	
-	        	file = fileGenerator.createFile(2000);
+	        	Random rand = new Random();
+	        	int fileSize = rand.nextInt(8)+2;
+	        	file = fileGenerator.createFile(fileSize*1000);
 //	            File file = new File(uploadFilePath+"/"+fileName);
 //	            byte buffer[] = new byte[(int)file.length()];
 //	            BufferedInputStream input = new

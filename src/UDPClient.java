@@ -35,7 +35,7 @@ public class UDPClient implements Runnable {
 	private ArrayList<String> files = new ArrayList<>(); // Set of files have on the node
 	private Hashtable<String, Neighbour> knownNodes = new Hashtable<String, Neighbour>(); // List of known nodes in the
 																							// network
-
+	private boolean DOWNLOAD_FALG = false;
 	// Create the RMI file server and Client
 	ServerController server = new ServerController();
 	FileClient client = new FileClient(Main.DOWNALOAD_FILE_PATH);
@@ -122,7 +122,7 @@ public class UDPClient implements Runnable {
 
 			gossiping(); // Start gossiping about my known nodes
 
-//			liveCheck(); // Check all the known nodes are live
+			// liveCheck(); // Check all the known nodes are live
 
 		} else {
 			System.out.println(username + " FAILD TO CONNECT TO SERVER");
@@ -247,7 +247,7 @@ public class UDPClient implements Runnable {
 			try {
 				clientSocket.receive(inData);
 				String response = new String(inData.getData());
-//				System.out.println(username + " recive message -> : " + response);
+				// System.out.println(username + " recive message -> : " + response);
 
 				String[] a = response.split(" ");
 
@@ -366,21 +366,25 @@ public class UDPClient implements Runnable {
 						}
 
 						String fileName = temp.toString().trim();
+						
+						if (!DOWNLOAD_FALG) {
+							DOWNLOAD_FALG = true;
+							boolean download = client.downloadFile(fileName, ip, (int) port); // Send
 
-						boolean download = client.downloadFile(fileName, ip, (int) port); // Send download command
+						}
+						// download command
 
 						// If the neighbour is already in the list
-						if (download) {
-							if (gossipContent.containsKey(ip + port)) {
-								gossipContent.get(fileName).add(new Neighbour(ip, port + ""));
 
-							} else {
-								ArrayList<Neighbour> list = new ArrayList<>();
-								list.add(new Neighbour(ip, port + ""));
-								gossipContent.put(fileName, list);
-							}
+						if (gossipContent.containsKey(fileName)) {
+							gossipContent.get(fileName).add(new Neighbour(ip, port + ""));
+
+						} else {
+							ArrayList<Neighbour> list = new ArrayList<>();
+							list.add(new Neighbour(ip, port + ""));
+							gossipContent.put(fileName, list);
 						}
-						
+
 					}
 
 				}
@@ -489,11 +493,11 @@ public class UDPClient implements Runnable {
 			if (knownNodes.isEmpty()) {
 				System.out.println("There are no neghbour nodes yet...");
 			} else {
-				System.out.println(
-						"**************************** Routing Table of " + username + " *******************************");
+				System.out.println("**************************** Routing Table of " + username
+						+ " *******************************");
 				knownNodes.forEach((key, value) -> {
-					System.out.println(" Ipaddress " + value.getIpAddress().getHostAddress()
-							+ " and port " + value.getPort());
+					System.out.println(
+							" Ipaddress " + value.getIpAddress().getHostAddress() + " and port " + value.getPort());
 				});
 			}
 		}
@@ -567,9 +571,10 @@ public class UDPClient implements Runnable {
 		String pre = " SER " + myAddress + " " + myPort + " " + fileName + " " + hops;
 		String message = String.format("%04d", pre.length() + 4) + pre; // length SER IP port file_name hops
 		synchronized (knownNodes) {
+			DOWNLOAD_FALG = false;
 			knownNodes.forEach((key, value) -> {
 				new Thread(() -> {
-					
+
 					sendMessageWithBackofftime(message, value.getIpAddress(), value.getPort(), true);
 
 				}).start();
@@ -593,7 +598,7 @@ public class UDPClient implements Runnable {
 		gossipContent.forEach((key, value) -> {
 			System.out.println("File name : " + key + " nodes : " + value.size());
 		});
-		
+
 		System.out.println("*****************************************************************************");
 	}
 
