@@ -49,9 +49,9 @@ public class Main {
 					break;
 
 				case 4:
-//					Scanner filename = new Scanner(System.in).useDelimiter("\\n");
+					Scanner filename = new Scanner(System.in).useDelimiter("\\n");
 					System.out.println("Enter the file name you want to download...");
-					String file = input.next();
+					String file = filename.next();
 					System.out.println("Enter the number of hops you want to go...");
 					int hops = input.nextInt();
 					node.searchFiles(file, hops);

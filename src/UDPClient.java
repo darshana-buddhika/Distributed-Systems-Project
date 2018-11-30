@@ -247,7 +247,7 @@ public class UDPClient implements Runnable {
 			try {
 				clientSocket.receive(inData);
 				String response = new String(inData.getData());
-				System.out.println(username + " recive message -> : " + response);
+//				System.out.println(username + " recive message -> : " + response);
 
 				String[] a = response.split(" ");
 
@@ -321,7 +321,7 @@ public class UDPClient implements Runnable {
 							numberOfMatches++;
 						}
 					}
-					int hops = Integer.parseInt(a[5].trim());
+					int hops = Integer.parseInt(a[a.length-1].trim());
 					
 					message = " SEROK " + numberOfMatches + " " + myAddress + " " + myPort +" "+hops+ message;
 					message = String.format("%04d", message.length() + 4) + message;
