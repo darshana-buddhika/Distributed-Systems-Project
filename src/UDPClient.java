@@ -247,7 +247,7 @@ public class UDPClient implements Runnable {
 			try {
 				clientSocket.receive(inData);
 				String response = new String(inData.getData());
-				// System.out.println(username + " recive message -> : " + response);
+				System.out.println(username + " recive message -> : " + response);
 
 				String[] a = response.split(" ");
 
@@ -262,7 +262,8 @@ public class UDPClient implements Runnable {
 					Neighbour tempNeighbour = new Neighbour(a[2].trim().substring(1), a[3].trim());
 					synchronized (knownNodes) {
 						if (!knownNodes
-								.containsKey(tempNeighbour.getIpAddress().getHostAddress() + tempNeighbour.getPort())) {
+								.containsKey(tempNeighbour.getIpAddress().getHostAddress() + tempNeighbour.getPort())
+								&& knownNodes.size() < 6) {
 							knownNodes.put(tempNeighbour.getIpAddress().getHostAddress() + tempNeighbour.getPort(),
 									tempNeighbour);
 							updated = true;
@@ -277,7 +278,8 @@ public class UDPClient implements Runnable {
 
 					for (int i = 0; i < nodeDetails.length; i += 2) {
 						synchronized (knownNodes) {
-							if (!knownNodes.containsKey(nodeDetails[i].trim() + nodeDetails[i + 1].trim())) {
+							if (!knownNodes.containsKey(nodeDetails[i].trim() + nodeDetails[i + 1].trim())
+									&& knownNodes.size() < 6) {
 
 								knownNodes.put(nodeDetails[i].trim() + nodeDetails[i + 1].trim(),
 										new Neighbour(nodeDetails[i].trim(), nodeDetails[i + 1].trim()));
@@ -319,8 +321,9 @@ public class UDPClient implements Runnable {
 							numberOfMatches++;
 						}
 					}
-
-					message = " SEROK " + numberOfMatches + " " + myAddress + " " + myPort + message;
+					int hops = Integer.parseInt(a[5].trim());
+					
+					message = " SEROK " + numberOfMatches + " " + myAddress + " " + myPort +" "+hops+ message;
 					message = String.format("%04d", message.length() + 4) + message;
 
 					sendMessageWithBackofftime("ACKOK", inData.getAddress(), inData.getPort(), false); //
@@ -330,7 +333,7 @@ public class UDPClient implements Runnable {
 						sendMessageWithBackofftime(message, InetAddress.getByName(a[2].trim().substring(1)),
 								Integer.parseInt(a[3].trim()), true);
 					} else {
-						int hops = Integer.parseInt(a[5].trim());
+
 						if (hops > 0) {
 
 							synchronized (knownNodes) {
@@ -366,11 +369,11 @@ public class UDPClient implements Runnable {
 						}
 
 						String fileName = temp.toString().trim();
-						
+
 						if (!DOWNLOAD_FALG) {
 							DOWNLOAD_FALG = true;
 							new Thread(new Runnable() {
-								
+
 								@Override
 								public void run() {
 									// TODO Auto-generated method stub
@@ -473,7 +476,8 @@ public class UDPClient implements Runnable {
 
 		String reply = sendMessage(message, neibhourAddress, neghbourPort, ack);
 		if (reply == null) {
-//			System.out.println("Message sending faild in th first attempt -> " + message);
+			// System.out.println("Message sending faild in th first attempt -> " +
+			// message);
 			String secondReply = sendMessage(message, neibhourAddress, neghbourPort, ack);
 
 			return secondReply;

@@ -37,10 +37,10 @@ public class FileClient {
 			System.out.println("LocalHash -> " + localHash);
 
 			if (localHash.equals(originalHash)) {
-				System.out.println("Hash is maching file download successfull");
+				System.out.println("Hash is maching. file download successfull");
 				return true;
 			} else {
-				System.out.println("Hash mismatch file download faild");
+				System.out.println("Hash mismatch. file download faild");
 				return false;
 			}
 
